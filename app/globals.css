@@ -5,6 +5,20 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  /* Brand colors */
+  --color-brand-navy: var(--brand-navy);
+  --color-brand-sky: var(--brand-sky);
+  --color-brand-sky-hover: var(--brand-sky-hover);
+  --color-surface-bg: var(--surface-bg);
+  --color-surface-card: var(--surface-card);
+  --color-surface-border: var(--surface-border);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-state-success: var(--state-success);
+  --color-state-warning: var(--state-warning);
+  --color-state-danger: var(--state-danger);
+  --color-state-info: var(--state-info);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
@@ -49,6 +63,20 @@
 }
 
 :root {
+  /* SalesONE Brand Colors */
+  --brand-navy: #0F172A;
+  --brand-sky: #38BDF8;
+  --brand-sky-hover: #0EA5E9;
+  --surface-bg: #F8FAFC;
+  --surface-card: #FFFFFF;
+  --surface-border: #E2E8F0;
+  --text-primary: #1E293B;
+  --text-secondary: #64748B;
+  --text-muted: #94A3B8;
+  --state-success: #10B981;
+  --state-warning: #F59E0B;
+  --state-danger: #EF4444;
+  --state-info: #38BDF8;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);

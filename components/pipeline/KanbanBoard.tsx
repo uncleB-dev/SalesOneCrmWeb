@@ -1,0 +1,222 @@
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import { DragDropContext, Droppable, DropResult } from '@hello-pangea/dnd'
+import { toast } from 'sonner'
+import KanbanCard from './KanbanCard'
+import type { KanbanColumn, Customer } from '@/types'
+
+interface Props {
+  initialPipeline: KanbanColumn[]
+  initialEscape: KanbanColumn[]
+  isDraggable?: boolean
+  reminders?: Record<string, string> // customerId -> nearest due_date
+}
+
+export default function KanbanBoard({
+  initialPipeline,
+  initialEscape,
+  isDraggable = true,
+  reminders = {},
+}: Props) {
+  const [isMounted, setIsMounted] = useState(false)
+  const [pipelineCols, setPipelineCols] = useState(initialPipeline)
+  const [escapeCols, setEscapeCols] = useState(initialEscape)
+
+  useEffect(() => setIsMounted(true), [])
+
+  const allCols = useCallback(() => [...pipelineCols, ...escapeCols], [pipelineCols, escapeCols])
+
+  const onDragEnd = async (result: DropResult) => {
+    const { source, destination, draggableId } = result
+    if (!destination) return
+    if (source.droppableId === destination.droppableId && source.index === destination.index) return
+
+    const srcColId = source.droppableId
+    const dstColId = destination.droppableId
+
+    const prevPipeline = [...pipelineCols]
+    const prevEscape = [...escapeCols]
+
+    // Helper: find and update columns
+    const updateCols = (cols: KanbanColumn[]): KanbanColumn[] => {
+      const srcCol = cols.find(c => c.id === srcColId)
+      const dstCol = cols.find(c => c.id === dstColId)
+
+      if (srcColId === dstColId && srcCol) {
+        // Same column reorder
+        const items = [...srcCol.customers]
+        const [moved] = items.splice(source.index, 1)
+        items.splice(destination.index, 0, moved)
+        return cols.map(c => c.id === srcColId ? { ...c, customers: items } : c)
+      }
+
+      if (srcCol && dstCol) {
+        const srcItems = srcCol.customers.filter(c => c.id !== draggableId)
+        const movedCustomer = srcCol.customers.find(c => c.id === draggableId)!
+        const dstItems = [...dstCol.customers]
+        dstItems.splice(destination.index, 0, { ...movedCustomer, stage: dstCol.name })
+        return cols
+          .map(c => c.id === srcColId ? { ...c, customers: srcItems } : c)
+          .map(c => c.id === dstColId ? { ...c, customers: dstItems } : c)
+      }
+      return cols
+    }
+
+    // Cross-section move: find which section each col belongs to
+    const srcInPipeline = pipelineCols.some(c => c.id === srcColId)
+    const dstInPipeline = pipelineCols.some(c => c.id === dstColId)
+    const srcInEscape = escapeCols.some(c => c.id === srcColId)
+    const dstInEscape = escapeCols.some(c => c.id === dstColId)
+
+    if (srcColId === dstColId) {
+      // Same column reorder
+      if (srcInPipeline) setPipelineCols(cols => updateCols(cols))
+      else setEscapeCols(cols => updateCols(cols))
+    } else if (srcInPipeline && dstInPipeline) {
+      setPipelineCols(cols => updateCols(cols))
+    } else if (srcInEscape && dstInEscape) {
+      setEscapeCols(cols => updateCols(cols))
+    } else {
+      // Cross-section: move customer between pipeline and escape
+      const movedCustomer = (srcInPipeline ? pipelineCols : escapeCols)
+        .find(c => c.id === srcColId)
+        ?.customers.find(c => c.id === draggableId)
+      if (!movedCustomer) return
+
+      const dstColName = (dstInPipeline ? pipelineCols : escapeCols)
+        .find(c => c.id === dstColId)?.name ?? ''
+
+      const updatedCustomer = { ...movedCustomer, stage: dstColName }
+
+      if (srcInPipeline) {
+        setPipelineCols(cols => cols.map(c =>
+          c.id === srcColId ? { ...c, customers: c.customers.filter(cu => cu.id !== draggableId) } : c
+        ))
+        setEscapeCols(cols => cols.map(c => {
+          if (c.id !== dstColId) return c
+          const items = [...c.customers]
+          items.splice(destination.index, 0, updatedCustomer)
+          return { ...c, customers: items }
+        }))
+      } else {
+        setEscapeCols(cols => cols.map(c =>
+          c.id === srcColId ? { ...c, customers: c.customers.filter(cu => cu.id !== draggableId) } : c
+        ))
+        setPipelineCols(cols => cols.map(c => {
+          if (c.id !== dstColId) return c
+          const items = [...c.customers]
+          items.splice(destination.index, 0, updatedCustomer)
+          return { ...c, customers: items }
+        }))
+      }
+    }
+
+    // API call
+    try {
+      if (srcColId !== dstColId) {
+        // Stage change
+        const dstColName = allCols().find(c => c.id === dstColId)?.name
+          ?? [...pipelineCols, ...escapeCols].find(c => c.id === dstColId)?.name ?? ''
+        const res = await fetch(`/api/v1/customers/${draggableId}/stage`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ stage: dstColName }),
+        })
+        const result = await res.json()
+        if (!result.success) throw new Error(result.error)
+      } else {
+        // Reorder within same column
+        const col = [...pipelineCols, ...escapeCols].find(c => c.id === srcColId)
+        if (col) {
+          const items = col.customers.map((c, i) => ({ id: c.id, order_index: i }))
+          await fetch('/api/v1/customers/reorder', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ items }),
+          })
+        }
+      }
+    } catch (e: any) {
+      // Rollback
+      setPipelineCols(prevPipeline)
+      setEscapeCols(prevEscape)
+      toast.error('이동에 실패했습니다: ' + e.message)
+    }
+  }
+
+  if (!isMounted) {
+    return (
+      <div className="flex gap-4 overflow-x-auto pb-4">
+        {initialPipeline.map(col => (
+          <div key={col.id} className="min-w-[200px] w-[200px] bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] h-64 animate-pulse" />
+        ))}
+      </div>
+    )
+  }
+
+  const renderColumn = (col: KanbanColumn) => (
+    <div key={col.id} className="min-w-[200px] w-[200px] flex-shrink-0 flex flex-col">
+      {/* 컬럼 헤더 */}
+      <div className="flex items-center justify-between mb-2 px-1">
+        <div className="flex items-center gap-2">
+          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: col.color }} />
+          <span className="text-sm font-semibold text-[#1E293B] truncate max-w-[120px]">{col.name}</span>
+        </div>
+        <span className="text-xs text-[#94A3B8] bg-[#F1F5F9] px-1.5 py-0.5 rounded-full">
+          {col.customers.length}
+        </span>
+      </div>
+
+      {/* Droppable 영역 */}
+      <Droppable droppableId={col.id}>
+        {(provided, snapshot) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.droppableProps}
+            className={`flex-1 min-h-[80px] rounded-xl p-2 space-y-2 transition-colors ${
+              snapshot.isDraggingOver ? 'bg-[#EFF6FF] border-2 border-dashed border-[#38BDF8]' : 'bg-[#F8FAFC]'
+            }`}
+          >
+            {col.customers.map((customer, index) => (
+              <KanbanCard
+                key={customer.id}
+                customer={customer}
+                index={index}
+                isDraggable={isDraggable}
+                nearestReminder={reminders[customer.id] ?? null}
+              />
+            ))}
+            {provided.placeholder}
+          </div>
+        )}
+      </Droppable>
+    </div>
+  )
+
+  return (
+    <DragDropContext onDragEnd={isDraggable ? onDragEnd : () => {}}>
+      <div className="space-y-6">
+        {/* 영업 파이프라인 섹션 */}
+        <div>
+          <h2 className="text-sm font-semibold text-[#64748B] mb-3 px-1">영업 파이프라인</h2>
+          <div className="flex gap-4 overflow-x-auto pb-4">
+            {pipelineCols.map(renderColumn)}
+          </div>
+        </div>
+
+        {/* 이탈 관리 섹션 */}
+        {escapeCols.length > 0 && (
+          <div>
+            <div className="border-t-2 border-dashed border-red-200 pt-6">
+              <h2 className="text-sm font-semibold text-red-400 mb-3 px-1">이탈 관리</h2>
+              <div className="flex gap-4 overflow-x-auto pb-4">
+                {escapeCols.map(renderColumn)}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </DragDropContext>
+  )
+}
