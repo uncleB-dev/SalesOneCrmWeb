@@ -1,15 +1,15 @@
 'use client'
 
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, Users, Columns3, Bell, Settings } from 'lucide-react'
+import { LayoutDashboard, Users, Columns3, Bell, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const tabs = [
   { label: '홈', icon: LayoutDashboard, href: '/dashboard' },
   { label: '고객', icon: Users, href: '/dashboard/customers' },
   { label: '파이프라인', icon: Columns3, href: '/dashboard/pipeline' },
-  { label: '리마인더', icon: Bell, href: '/dashboard/reminders' },
-  { label: '설정', icon: Settings, href: '/dashboard/settings' },
+  { label: '일정', icon: Bell, href: '/dashboard/reminders' },
+  { label: '기록', icon: FileText, href: '/dashboard/records' },
 ]
 
 export default function BottomTabBar() {

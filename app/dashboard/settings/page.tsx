@@ -1,46 +1,37 @@
 export const dynamic = 'force-dynamic'
-export const revalidate = 0
 
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
-import PipelineStagesEditor from '@/components/settings/PipelineStagesEditor'
+import SettingsClient from '@/components/settings/SettingsClient'
 
 export default async function SettingsPage() {
   const supabase = await createServerSupabaseClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) redirect('/auth')
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/auth')
 
-  const [{ data: stages }, { data: customers }] = await Promise.all([
-    supabase
-      .from('pipeline_stages')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .order('order_index', { ascending: true }),
-    supabase
-      .from('customers')
-      .select('stage')
-      .eq('user_id', session.user.id)
-      .is('deleted_at', null),
-  ])
+  // user_profiles에서 이름 조회 (이메일 가입 사용자 포함)
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('name, avatar_url')
+    .eq('id', user.id)
+    .single()
 
-  const customerCountByStage: Record<string, number> = {}
-  ;(customers ?? []).forEach(c => {
-    customerCountByStage[c.stage] = (customerCountByStage[c.stage] ?? 0) + 1
-  })
+  const name = profile?.name ?? user.user_metadata?.full_name ?? user.user_metadata?.name ?? ''
+  const email = user.email ?? ''
+  const avatarUrl = profile?.avatar_url ?? user.user_metadata?.avatar_url ?? null
+  const isGoogleConnected = user.identities?.some(i => i.provider === 'google') ?? false
+  const googleEmail = isGoogleConnected
+    ? user.identities?.find(i => i.provider === 'google')?.identity_data?.email ?? null
+    : null
 
   return (
-    <div className="p-4 md:p-6 max-w-2xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-[#1E293B]">설정</h1>
-        <p className="text-sm text-[#94A3B8] mt-1">파이프라인 단계를 직접 커스터마이징하세요</p>
-      </div>
-
-      <div className="bg-white rounded-xl border border-[#E2E8F0] p-6">
-        <PipelineStagesEditor
-          initialStages={stages ?? []}
-          customerCountByStage={customerCountByStage}
-        />
-      </div>
-    </div>
+    <SettingsClient
+      userId={user.id}
+      initialName={name}
+      email={email}
+      avatarUrl={avatarUrl}
+      isGoogleConnected={isGoogleConnected}
+      googleEmail={googleEmail}
+    />
   )
 }

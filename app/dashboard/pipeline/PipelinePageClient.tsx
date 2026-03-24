@@ -35,10 +35,10 @@ export default function PipelinePageClient({
         </div>
         <button
           onClick={() => setShowEditor(true)}
-          className="flex items-center gap-2 px-4 py-2 border border-[#E2E8F0] rounded-lg text-sm text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
+          className="flex items-center gap-2 px-3 py-2 min-h-[44px] border border-[#E2E8F0] rounded-lg text-sm text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
         >
           <Settings size={15} />
-          단계 관리
+          <span className="hidden sm:inline">단계 관리</span>
         </button>
       </div>
 

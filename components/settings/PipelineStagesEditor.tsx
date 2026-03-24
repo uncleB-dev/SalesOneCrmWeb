@@ -13,8 +13,9 @@ const COLOR_PALETTE = [
   '#6366F1', '#EF4444',
 ]
 
-const PIPELINE_MIN = 5
-const PIPELINE_MAX = 12
+const PIPELINE_MIN = 1
+const PIPELINE_MAX = 20
+const ESCAPE_MAX = 5
 
 interface Props {
   initialStages: PipelineStage[]
@@ -80,6 +81,10 @@ export default function PipelineStagesEditor({ initialStages, customerCountBySta
     const current = type === 'pipeline' ? pipeline : escape
     if (type === 'pipeline' && current.length >= PIPELINE_MAX) {
       toast.error(`최대 ${PIPELINE_MAX}개까지 추가할 수 있습니다`)
+      return
+    }
+    if (type === 'escape' && current.length >= ESCAPE_MAX) {
+      toast.error(`이탈 관리는 최대 ${ESCAPE_MAX}개까지 추가할 수 있습니다`)
       return
     }
     const newStage: PipelineStage = {
@@ -314,14 +319,18 @@ export default function PipelineStagesEditor({ initialStages, customerCountBySta
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-base font-semibold text-[#EF4444]">이탈 관리</h3>
-            <p className="text-sm text-[#94A3B8]">최소 1개</p>
+            <p className="text-sm text-[#94A3B8]">
+              {escape.length}/{ESCAPE_MAX}개 · 최소 1개
+            </p>
           </div>
-          <button
-            onClick={() => addStage('escape')}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm text-red-400 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
-          >
-            <Plus size={15} /> 단계 추가
-          </button>
+          {escape.length < ESCAPE_MAX && (
+            <button
+              onClick={() => addStage('escape')}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm text-red-400 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+            >
+              <Plus size={15} /> 단계 추가
+            </button>
+          )}
         </div>
         <div className="bg-red-50/50 rounded-xl p-3 border border-red-100">
           {renderStageList(escape, setEscape, 'escape', 'escape-droppable')}

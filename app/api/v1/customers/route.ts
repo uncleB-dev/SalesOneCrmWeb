@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { z } from 'zod'
+import { createGoogleContact } from '@/lib/google/contacts'
 
 export const dynamic = 'force-dynamic'
 
@@ -58,7 +59,9 @@ const createSchema = z.object({
   company: z.string().optional().nullable(),
   job_title: z.string().optional().nullable(),
   memo: z.string().optional().nullable(),
+  address: z.string().optional().nullable(),
   tags: z.array(z.string()).optional().default([]),
+  is_google_contact_synced: z.boolean().optional().default(false),
 })
 
 export async function POST(request: NextRequest) {
@@ -73,13 +76,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: parsed.error.flatten(), success: false }, { status: 400 })
     }
 
-    const { data, error } = await supabase
+    const { is_google_contact_synced, ...customerFields } = parsed.data
+
+    const { data: customer, error } = await supabase
       .from('customers')
-      .insert({ ...parsed.data, user_id: session.user.id })
+      .insert({ ...customerFields, is_google_contact_synced, user_id: session.user.id })
       .select()
       .single()
     if (error) throw error
-    return NextResponse.json({ data, success: true }, { status: 201 })
+
+    // Google Contacts 연동
+    let googleWarning: string | null = null
+    if (is_google_contact_synced && session.provider_token) {
+      try {
+        const contactId = await createGoogleContact(session.provider_token, customer)
+        await supabase.from('customers').update({ google_contact_id: contactId }).eq('id', customer.id)
+        customer.google_contact_id = contactId
+        await supabase.from('interactions').insert({
+          customer_id: customer.id,
+          user_id: session.user.id,
+          type: '기타',
+          content: '📇 구글 주소록 등록됨',
+          occurred_at: new Date().toISOString(),
+        })
+      } catch (e: any) {
+        googleWarning = e.message
+      }
+    }
+
+    return NextResponse.json({ data: customer, googleWarning, success: true }, { status: 201 })
   } catch (error: any) {
     return NextResponse.json({ error: error.message, success: false }, { status: 500 })
   }

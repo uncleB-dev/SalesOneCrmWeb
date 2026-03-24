@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { z } from 'zod'
+import { updateGoogleContact, deleteGoogleContact } from '@/lib/google/contacts'
 
 export const dynamic = 'force-dynamic'
 
@@ -53,8 +54,10 @@ const updateSchema = z.object({
   company: z.string().optional().nullable(),
   job_title: z.string().optional().nullable(),
   memo: z.string().optional().nullable(),
+  address: z.string().optional().nullable(),
   tags: z.array(z.string()).optional(),
   is_blacklist: z.boolean().optional(),
+  is_google_contact_synced: z.boolean().optional(),
 })
 
 export async function PATCH(
@@ -79,7 +82,25 @@ export async function PATCH(
       .select()
       .single()
     if (error) throw error
-    return NextResponse.json({ data, success: true })
+
+    // Google Contacts 업데이트
+    let googleWarning: string | null = null
+    if (data.google_contact_id && data.is_google_contact_synced && session.provider_token) {
+      try {
+        await updateGoogleContact(session.provider_token, data.google_contact_id, data)
+        await supabase.from('interactions').insert({
+          customer_id: id,
+          user_id: session.user.id,
+          type: '기타',
+          content: '📇 구글 주소록 업데이트됨',
+          occurred_at: new Date().toISOString(),
+        })
+      } catch (e: any) {
+        googleWarning = e.message
+      }
+    }
+
+    return NextResponse.json({ data, googleWarning, success: true })
   } catch (error: any) {
     return NextResponse.json({ error: error.message, success: false }, { status: 500 })
   }
@@ -95,12 +116,22 @@ export async function DELETE(
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
 
+    // Fetch before deleting to get google_contact_id
+    const { data: customer } = await supabase
+      .from('customers').select('google_contact_id').eq('id', id).eq('user_id', session.user.id).single()
+
     const { error } = await supabase
       .from('customers')
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', id)
       .eq('user_id', session.user.id)
     if (error) throw error
+
+    // Google Contacts 삭제 (fire-and-forget)
+    if (customer?.google_contact_id && session.provider_token) {
+      deleteGoogleContact(session.provider_token, customer.google_contact_id).catch(() => {})
+    }
+
     return NextResponse.json({ success: true })
   } catch (error: any) {
     return NextResponse.json({ error: error.message, success: false }, { status: 500 })

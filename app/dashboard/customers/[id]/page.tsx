@@ -7,10 +7,13 @@ import CustomerDetailClient from './CustomerDetailClient'
 
 export default async function CustomerDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ tab?: string }>
 }) {
   const { id } = await params
+  const { tab } = await searchParams
   const supabase = await createServerSupabaseClient()
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) redirect('/auth')
@@ -51,6 +54,7 @@ export default async function CustomerDetailPage({
       stages={stages ?? []}
       initialInteractions={interactions ?? []}
       initialReminders={reminders ?? []}
+      initialTab={tab === 'reminders' ? 'reminders' : undefined}
     />
   )
 }

@@ -149,21 +149,30 @@ export default function KanbanBoard({
     return (
       <div className="flex gap-4 overflow-x-auto pb-4">
         {initialPipeline.map(col => (
-          <div key={col.id} className="min-w-[200px] w-[200px] bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] h-64 animate-pulse" />
+          <div key={col.id} className="min-w-[200px] w-[200px] md:min-w-[280px] md:w-[280px] bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] h-64 animate-pulse overflow-hidden" style={{ borderTop: `4px solid ${col.color}` }} />
         ))}
       </div>
     )
   }
 
   const renderColumn = (col: KanbanColumn) => (
-    <div key={col.id} className="min-w-[200px] w-[200px] flex-shrink-0 flex flex-col">
+    <div
+      key={col.id}
+      className="min-w-[200px] w-[200px] md:min-w-[280px] md:w-[280px] flex-shrink-0 flex flex-col rounded-xl overflow-hidden border border-[#E2E8F0]"
+      style={{ borderTop: `4px solid ${col.color}` }}
+    >
       {/* 컬럼 헤더 */}
-      <div className="flex items-center justify-between mb-2 px-1">
-        <div className="flex items-center gap-2">
-          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: col.color }} />
-          <span className="text-sm font-semibold text-[#1E293B] truncate max-w-[120px]">{col.name}</span>
-        </div>
-        <span className="text-xs text-[#94A3B8] bg-[#F1F5F9] px-1.5 py-0.5 rounded-full">
+      <div
+        className="flex items-center justify-between px-3 py-2"
+        style={{ backgroundColor: `${col.color}33` }}
+      >
+        <span className="text-sm font-semibold truncate max-w-[130px]" style={{ color: col.color }}>
+          {col.name}
+        </span>
+        <span
+          className="text-white text-xs font-bold px-1.5 py-0.5 rounded-full ml-1 flex-shrink-0"
+          style={{ backgroundColor: col.color }}
+        >
           {col.customers.length}
         </span>
       </div>
@@ -174,7 +183,7 @@ export default function KanbanBoard({
           <div
             ref={provided.innerRef}
             {...provided.droppableProps}
-            className={`flex-1 min-h-[80px] rounded-xl p-2 space-y-2 transition-colors ${
+            className={`flex-1 min-h-[80px] p-2 space-y-2 transition-colors ${
               snapshot.isDraggingOver ? 'bg-[#EFF6FF] border-2 border-dashed border-[#38BDF8]' : 'bg-[#F8FAFC]'
             }`}
           >

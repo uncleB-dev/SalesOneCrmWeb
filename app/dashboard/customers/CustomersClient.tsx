@@ -2,11 +2,13 @@
 
 import { useState, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Search, ChevronUp, ChevronDown, Phone } from 'lucide-react'
+import { Plus, Search, ChevronUp, ChevronDown, Phone, Upload, BookUser } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatRelative, formatDate } from '@/lib/utils/format'
 import StageBadge from '@/components/customers/StageBadge'
 import CustomerForm from '@/components/customers/CustomerForm'
+import CsvImportModal from '@/components/customers/CsvImportModal'
+import GoogleContactsImportModal from '@/components/customers/GoogleContactsImportModal'
 import type { Customer, PipelineStage } from '@/types'
 
 interface Props {
@@ -25,13 +27,23 @@ export default function CustomersClient({ initialCustomers, stages }: Props) {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
+  const [isCsvModalOpen, setIsCsvModalOpen] = useState(false)
+  const [isGoogleContactsModalOpen, setIsGoogleContactsModalOpen] = useState(false)
 
   const pipelineStages = stages.filter(s => s.stage_type === 'pipeline')
-  const allStages = stages
+  const escapeStages = stages.filter(s => s.stage_type === 'escape')
 
   const stageColorMap = useMemo(() =>
     Object.fromEntries(stages.map(s => [s.name, s.color])),
     [stages]
+  )
+
+  const countByStage = useMemo(() =>
+    customers.reduce((acc, c) => {
+      acc[c.stage] = (acc[c.stage] ?? 0) + 1
+      return acc
+    }, {} as Record<string, number>),
+    [customers]
   )
 
   const filtered = useMemo(() => {
@@ -84,38 +96,97 @@ export default function CustomersClient({ initialCustomers, stages }: Props) {
     setIsFormOpen(true)
   }
 
+  const handleBulkImportSuccess = useCallback(() => {
+    router.refresh()
+  }, [router])
+
   return (
     <div className="p-4 md:p-6">
       {/* 툴바 */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-5">
-        <div className="relative flex-1">
+      <div className="flex flex-col gap-2 mb-4">
+        {/* 검색 */}
+        <div className="relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="이름 또는 전화번호 검색..."
-            className="w-full pl-9 pr-4 py-2.5 border border-[#E2E8F0] rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#38BDF8]/30 focus:border-[#38BDF8]"
+            className="w-full pl-9 pr-4 py-2.5 border border-[#E2E8F0] rounded-lg text-base bg-white focus:outline-none focus:ring-2 focus:ring-[#38BDF8]/30 focus:border-[#38BDF8]"
           />
         </div>
 
-        <select
-          value={stageFilter}
-          onChange={e => setStageFilter(e.target.value)}
-          className="px-3 py-2.5 border border-[#E2E8F0] rounded-lg text-sm bg-white focus:outline-none min-w-[120px]"
-        >
-          <option value="전체">전체 단계</option>
-          {stages.map(s => (
-            <option key={s.id} value={s.name}>{s.name}</option>
-          ))}
-        </select>
+        {/* 가져오기 버튼 + 고객 추가 (PC) */}
+        <div className="flex gap-2 overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden">
+          <button
+            onClick={() => setIsCsvModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 border border-[#E2E8F0] bg-white text-[#374151] rounded-lg text-sm font-medium hover:bg-[#F8FAFC] whitespace-nowrap flex-shrink-0 min-h-[44px]"
+          >
+            <Upload size={15} />
+            CSV 가져오기
+          </button>
 
+          <button
+            onClick={() => setIsGoogleContactsModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 border border-[#E2E8F0] bg-white text-[#374151] rounded-lg text-sm font-medium hover:bg-[#F8FAFC] whitespace-nowrap flex-shrink-0 min-h-[44px]"
+          >
+            <BookUser size={15} />
+            주소록 가져오기
+          </button>
+
+          {/* 고객 추가: PC에서만 툴바에 표시, 모바일은 FAB */}
+          <button
+            onClick={() => { setEditingCustomer(null); setIsFormOpen(true) }}
+            className="hidden md:flex items-center gap-2 px-4 py-2.5 bg-[#0F172A] text-white rounded-lg text-sm font-medium hover:bg-[#1e293b] whitespace-nowrap flex-shrink-0"
+          >
+            <Plus size={16} />
+            고객 추가
+          </button>
+        </div>
+      </div>
+
+      {/* 단계 필터 버튼 — 모바일: 가로 스크롤 */}
+      <div className="flex overflow-x-auto gap-1.5 mb-4 pb-1 -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap [&::-webkit-scrollbar]:hidden">
         <button
-          onClick={() => { setEditingCustomer(null); setIsFormOpen(true) }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-[#0F172A] text-white rounded-lg text-sm font-medium hover:bg-[#1e293b] whitespace-nowrap"
+          onClick={() => setStageFilter('전체')}
+          className="px-3 py-1 rounded-full text-xs font-medium transition-colors border flex-shrink-0 min-h-[32px]"
+          style={stageFilter === '전체'
+            ? { backgroundColor: '#38BDF8', color: '#fff', borderColor: '#38BDF8' }
+            : { backgroundColor: '#fff', color: '#64748B', borderColor: '#E2E8F0' }
+          }
         >
-          <Plus size={16} />
-          고객 추가
+          전체 {customers.length}
         </button>
+        {pipelineStages.map(s => (
+          <button
+            key={s.id}
+            onClick={() => setStageFilter(s.name)}
+            className="px-3 py-1 rounded-full text-xs font-medium transition-colors border flex-shrink-0 whitespace-nowrap min-h-[32px]"
+            style={stageFilter === s.name
+              ? { backgroundColor: s.color, color: '#fff', borderColor: s.color }
+              : { backgroundColor: '#fff', color: '#64748B', borderColor: '#E2E8F0' }
+            }
+          >
+            {s.name} {countByStage[s.name] ?? 0}
+          </button>
+        ))}
+        {escapeStages.length > 0 && (
+          <>
+            <span className="text-[#E2E8F0] self-center flex-shrink-0">|</span>
+            {escapeStages.map(s => (
+              <button
+                key={s.id}
+                onClick={() => setStageFilter(s.name)}
+                className="px-3 py-1 rounded-full text-xs font-medium transition-colors border flex-shrink-0 whitespace-nowrap min-h-[32px]"
+                style={stageFilter === s.name
+                  ? { backgroundColor: s.color, color: '#fff', borderColor: s.color }
+                  : { backgroundColor: '#fff', color: '#64748B', borderColor: '#E2E8F0' }
+                }
+              >
+                {s.name} {countByStage[s.name] ?? 0}
+              </button>
+            ))}
+          </>
+        )}
       </div>
 
       <p className="text-sm text-[#64748B] mb-3">
@@ -219,6 +290,28 @@ export default function CustomersClient({ initialCustomers, stages }: Props) {
           onSuccess={handleFormSuccess}
         />
       )}
+
+      {isCsvModalOpen && (
+        <CsvImportModal
+          onClose={() => setIsCsvModalOpen(false)}
+          onSuccess={handleBulkImportSuccess}
+        />
+      )}
+
+      {isGoogleContactsModalOpen && (
+        <GoogleContactsImportModal
+          onClose={() => setIsGoogleContactsModalOpen(false)}
+          onSuccess={handleBulkImportSuccess}
+        />
+      )}
+
+      {/* FAB: 모바일 전용 고객 추가 버튼 */}
+      <button
+        onClick={() => { setEditingCustomer(null); setIsFormOpen(true) }}
+        className="md:hidden fixed bottom-20 right-4 w-14 h-14 rounded-full bg-[#38BDF8] text-white shadow-lg flex items-center justify-center z-30 active:scale-95 transition-transform"
+      >
+        <Plus size={24} />
+      </button>
     </div>
   )
 }

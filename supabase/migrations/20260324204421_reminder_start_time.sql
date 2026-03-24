@@ -1,0 +1,1 @@
+ALTER TABLE reminders ADD COLUMN IF NOT EXISTS start_time TIME;

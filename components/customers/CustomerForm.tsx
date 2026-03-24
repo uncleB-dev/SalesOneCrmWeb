@@ -1,6 +1,5 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -8,6 +7,19 @@ import { X } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatPhone } from '@/lib/utils/format'
 import type { Customer, PipelineStage } from '@/types'
+
+const SYNC_KEY = 'salesone_google_contact_sync'
+
+function getSavedSync(): boolean {
+  try {
+    const saved = localStorage.getItem(SYNC_KEY)
+    return saved ? saved === 'true' : false
+  } catch {
+    return false
+  }
+}
+
+const SOURCE_OPTIONS = ['일반', '지인소개', 'SNS', '블로그', '콜드콜', '기존고객', '전시회', '기타']
 
 const schema = z.object({
   name: z.string().min(1, '이름을 입력하세요'),
@@ -17,11 +29,12 @@ const schema = z.object({
   birth_month: z.string().optional(),
   birth_day: z.string().optional(),
   gender: z.enum(['남', '여', '']).optional(),
-  stage: z.string().min(1, '단계를 선택하세요'),
   source: z.string().optional(),
   company: z.string().optional(),
   job_title: z.string().optional(),
+  address: z.string().optional(),
   memo: z.string().optional(),
+  is_google_contact_synced: z.boolean().optional(),
 })
 
 type FormData = z.infer<typeof schema>
@@ -39,7 +52,7 @@ export default function CustomerForm({ customer, stages, onClose, onSuccess }: C
 
   const birthParts = customer?.birth_date?.split('-') ?? []
 
-  const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       name: customer?.name ?? '',
@@ -49,11 +62,12 @@ export default function CustomerForm({ customer, stages, onClose, onSuccess }: C
       birth_month: birthParts[1] ?? '',
       birth_day: birthParts[2] ?? '',
       gender: (customer?.gender as any) ?? '',
-      stage: customer?.stage ?? pipelineStages[0]?.name ?? '',
-      source: customer?.source ?? '',
+      source: customer?.source ?? '일반',
       company: customer?.company ?? '',
       job_title: customer?.job_title ?? '',
+      address: customer?.address ?? '',
       memo: customer?.memo ?? '',
+      is_google_contact_synced: isEdit ? (customer?.is_google_contact_synced ?? false) : getSavedSync(),
     },
   })
 
@@ -64,17 +78,23 @@ export default function CustomerForm({ customer, stages, onClose, onSuccess }: C
         birth_date = `${data.birth_year}-${data.birth_month.padStart(2, '0')}-${data.birth_day.padStart(2, '0')}`
       }
 
-      const payload = {
+      const payload: Record<string, any> = {
         name: data.name,
         phone: data.phone,
         email: data.email || null,
         birth_date,
         gender: data.gender || null,
-        stage: data.stage,
         source: data.source || null,
         company: data.company || null,
         job_title: data.job_title || null,
+        address: data.address || null,
         memo: data.memo || null,
+        is_google_contact_synced: data.is_google_contact_synced ?? false,
+      }
+
+      if (!isEdit) {
+        const firstStage = [...pipelineStages].sort((a, b) => a.order_index - b.order_index)[0]
+        payload.stage = firstStage?.name ?? ''
       }
 
       const url = isEdit ? `/api/v1/customers/${customer.id}` : '/api/v1/customers'
@@ -121,7 +141,7 @@ export default function CustomerForm({ customer, stages, onClose, onSuccess }: C
             </label>
             <input
               {...register('name')}
-              className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#38BDF8]/30 focus:border-[#38BDF8]"
+              className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-[#38BDF8]/30 focus:border-[#38BDF8]"
               placeholder="홍길동"
             />
             {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name.message}</p>}
@@ -135,27 +155,11 @@ export default function CustomerForm({ customer, stages, onClose, onSuccess }: C
             <input
               {...register('phone')}
               onChange={e => setValue('phone', formatPhone(e.target.value))}
-              className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#38BDF8]/30 focus:border-[#38BDF8]"
+              className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-[#38BDF8]/30 focus:border-[#38BDF8]"
               placeholder="010-0000-0000"
               maxLength={13}
             />
             {errors.phone && <p className="text-xs text-red-500 mt-1">{errors.phone.message}</p>}
-          </div>
-
-          {/* 단계 */}
-          <div>
-            <label className="block text-sm font-medium text-[#374151] mb-1">
-              단계 <span className="text-red-500">*</span>
-            </label>
-            <select
-              {...register('stage')}
-              className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#38BDF8]/30 focus:border-[#38BDF8]"
-            >
-              {pipelineStages.map(s => (
-                <option key={s.id} value={s.name}>{s.name}</option>
-              ))}
-            </select>
-            {errors.stage && <p className="text-xs text-red-500 mt-1">{errors.stage.message}</p>}
           </div>
 
           {/* 이메일 */}
@@ -164,7 +168,7 @@ export default function CustomerForm({ customer, stages, onClose, onSuccess }: C
             <input
               {...register('email')}
               type="email"
-              className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#38BDF8]/30 focus:border-[#38BDF8]"
+              className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-[#38BDF8]/30 focus:border-[#38BDF8]"
               placeholder="example@email.com"
             />
           </div>
@@ -175,13 +179,13 @@ export default function CustomerForm({ customer, stages, onClose, onSuccess }: C
             <div className="flex gap-2">
               <input
                 {...register('birth_year')}
-                className="w-24 px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#38BDF8]/30 focus:border-[#38BDF8]"
+                className="w-24 px-3 py-2 border border-[#E2E8F0] rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-[#38BDF8]/30 focus:border-[#38BDF8]"
                 placeholder="1990"
                 maxLength={4}
               />
               <select
                 {...register('birth_month')}
-                className="flex-1 px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#38BDF8]/30 focus:border-[#38BDF8]"
+                className="flex-1 px-3 py-2 border border-[#E2E8F0] rounded-lg text-base bg-white focus:outline-none focus:ring-2 focus:ring-[#38BDF8]/30 focus:border-[#38BDF8]"
               >
                 <option value="">월</option>
                 {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
@@ -190,7 +194,7 @@ export default function CustomerForm({ customer, stages, onClose, onSuccess }: C
               </select>
               <select
                 {...register('birth_day')}
-                className="flex-1 px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#38BDF8]/30 focus:border-[#38BDF8]"
+                className="flex-1 px-3 py-2 border border-[#E2E8F0] rounded-lg text-base bg-white focus:outline-none focus:ring-2 focus:ring-[#38BDF8]/30 focus:border-[#38BDF8]"
               >
                 <option value="">일</option>
                 {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
@@ -213,15 +217,14 @@ export default function CustomerForm({ customer, stages, onClose, onSuccess }: C
             </div>
           </div>
 
-          {/* 유입경로 */}
+          {/* 관계 */}
           <div>
-            <label className="block text-sm font-medium text-[#374151] mb-1">유입경로</label>
+            <label className="block text-sm font-medium text-[#374151] mb-1">관계</label>
             <select
               {...register('source')}
-              className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#38BDF8]/30 focus:border-[#38BDF8]"
+              className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-base bg-white focus:outline-none focus:ring-2 focus:ring-[#38BDF8]/30 focus:border-[#38BDF8]"
             >
-              <option value="">선택 안함</option>
-              {['지인소개', 'SNS', '블로그', '콜드콜', '기존고객', '전시회', '기타'].map(s => (
+              {SOURCE_OPTIONS.map(s => (
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
@@ -233,16 +236,26 @@ export default function CustomerForm({ customer, stages, onClose, onSuccess }: C
               <label className="block text-sm font-medium text-[#374151] mb-1">회사명</label>
               <input
                 {...register('company')}
-                className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#38BDF8]/30 focus:border-[#38BDF8]"
+                className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-[#38BDF8]/30 focus:border-[#38BDF8]"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-[#374151] mb-1">직책</label>
               <input
                 {...register('job_title')}
-                className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#38BDF8]/30 focus:border-[#38BDF8]"
+                className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-[#38BDF8]/30 focus:border-[#38BDF8]"
               />
             </div>
+          </div>
+
+          {/* 주소 */}
+          <div>
+            <label className="block text-sm font-medium text-[#374151] mb-1">주소</label>
+            <input
+              {...register('address')}
+              className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-[#38BDF8]/30 focus:border-[#38BDF8]"
+              placeholder="서울시 강남구..."
+            />
           </div>
 
           {/* 메모 */}
@@ -251,8 +264,28 @@ export default function CustomerForm({ customer, stages, onClose, onSuccess }: C
             <textarea
               {...register('memo')}
               rows={3}
-              className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#38BDF8]/30 focus:border-[#38BDF8] resize-none"
+              className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-[#38BDF8]/30 focus:border-[#38BDF8] resize-none"
             />
+          </div>
+
+          {/* 구글 주소록 동기화 */}
+          <div className="flex items-center justify-between p-3 bg-[#F8FAFC] rounded-lg border border-[#E2E8F0]">
+            <div>
+              <p className="text-sm font-medium text-[#374151]">📇 구글 주소록 동기화</p>
+              <p className="text-xs text-[#94A3B8] mt-0.5">저장 시 구글 주소록에 자동 반영됩니다</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                className="sr-only peer"
+                {...register('is_google_contact_synced')}
+                onChange={e => {
+                  setValue('is_google_contact_synced', e.target.checked)
+                  try { localStorage.setItem(SYNC_KEY, String(e.target.checked)) } catch {}
+                }}
+              />
+              <div className="w-11 h-6 bg-[#E2E8F0] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#D1D5DB] after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#38BDF8]"></div>
+            </label>
           </div>
         </form>
 

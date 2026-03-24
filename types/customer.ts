@@ -12,6 +12,10 @@ export interface Customer {
   memo?: string | null
   company?: string | null
   job_title?: string | null
+  address?: string | null
+  google_contact_id?: string | null
+  google_drive_folder_id?: string | null
+  is_google_contact_synced: boolean
   order_index: number
   is_blacklist: boolean
   deleted_at?: string | null
@@ -40,7 +44,20 @@ export interface Reminder {
   customer_id: string
   user_id: string
   due_date: string
+  start_time?: string | null
   memo?: string | null
   is_done: boolean
+  google_event_id?: string | null
   created_at: string
+}
+
+export interface DriveFileRecord {
+  id: string
+  customer_id: string
+  file_id: string
+  file_name: string
+  created_time: string | null
+  modified_time: string | null
+  last_seen_at: string
+  is_deleted: boolean
 }
