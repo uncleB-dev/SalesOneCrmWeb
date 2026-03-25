@@ -4,7 +4,7 @@ import { getApiAuth } from '@/lib/api-auth'
 export const dynamic = 'force-dynamic'
 
 // GET: 알림 목록 (팀 알림 + 오늘/기한 초과 리마인더)
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const auth = await getApiAuth(request)
   if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
@@ -66,7 +66,7 @@ export async function GET() {
 }
 
 // PATCH: 팀 알림 전체 읽음 처리
-export async function PATCH() {
+export async function PATCH(request: NextRequest) {
   try {
     const auth = await getApiAuth(request)
     if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
