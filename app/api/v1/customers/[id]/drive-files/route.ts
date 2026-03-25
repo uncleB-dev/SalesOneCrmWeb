@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { getApiAuth } from '@/lib/api-auth'
 import { getDriveFolderFiles } from '@/lib/google/drive'
 
 export const dynamic = 'force-dynamic'
@@ -10,12 +10,12 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const supabase = await createServerSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const auth = await getApiAuth(request)
+  if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+  const { supabase, userId } = auth
 
     const { data: customer } = await supabase
-      .from('customers').select('google_drive_folder_id').eq('id', id).eq('user_id', session.user.id).single()
+      .from('customers').select('google_drive_folder_id').eq('id', id).eq('user_id', userId).single()
 
     if (!customer?.google_drive_folder_id) {
       return NextResponse.json({ data: [], success: true })

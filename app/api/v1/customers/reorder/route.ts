@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { getApiAuth } from '@/lib/api-auth'
 
 export const dynamic = 'force-dynamic'
 
 export async function PATCH(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const auth = await getApiAuth(request)
+  if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+  const { supabase, userId } = auth
 
     const { items } = await request.json()
     if (!Array.isArray(items)) {
@@ -19,7 +19,7 @@ export async function PATCH(request: NextRequest) {
         .from('customers')
         .update({ order_index: item.order_index })
         .eq('id', item.id)
-        .eq('user_id', session.user.id)
+        .eq('user_id', userId)
     )
     await Promise.all(updates)
     return NextResponse.json({ success: true })

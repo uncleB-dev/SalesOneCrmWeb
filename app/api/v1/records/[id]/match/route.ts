@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { getApiAuth } from '@/lib/api-auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,9 +9,9 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params
-    const supabase = await createServerSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const auth = await getApiAuth(request)
+  if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+  const { supabase, userId } = auth
 
     const { customer_id } = await request.json()
     if (!customer_id) {
@@ -23,7 +23,7 @@ export async function PATCH(
       .from('call_records')
       .select('*')
       .eq('id', id)
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
       .single()
     if (fetchError || !record) {
       return NextResponse.json({ error: '기록을 찾을 수 없습니다', success: false }, { status: 404 })
@@ -34,7 +34,7 @@ export async function PATCH(
       .from('customers')
       .select('id')
       .eq('id', customer_id)
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
       .is('deleted_at', null)
       .single()
     if (custError || !customer) {
@@ -46,7 +46,7 @@ export async function PATCH(
       .from('call_records')
       .update({ customer_id, is_matched: true })
       .eq('id', id)
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
       .select()
       .single()
     if (updateError) throw updateError
@@ -59,7 +59,7 @@ export async function PATCH(
     ].filter(Boolean).join('\n')
 
     await supabase.from('interactions').insert({
-      user_id: session.user.id,
+      user_id: userId,
       customer_id,
       type: '전화',
       content: `🤖 AI 통화요약\n${content}`,

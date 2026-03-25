@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { getApiAuth } from '@/lib/api-auth'
 
 export const dynamic = 'force-dynamic'
 
 // GET: 알림 목록 (팀 알림 + 오늘/기한 초과 리마인더)
 export async function GET() {
   try {
-    const supabase = await createServerSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const auth = await getApiAuth(request)
+  if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+  const { supabase, userId } = auth
 
     const todayStr = new Date().toISOString().split('T')[0]
 
@@ -17,7 +17,7 @@ export async function GET() {
       supabase
         .from('notifications')
         .select('*')
-        .eq('user_id', session.user.id)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(20),
 
@@ -25,7 +25,7 @@ export async function GET() {
       supabase
         .from('reminders')
         .select('*, customers(id, name)')
-        .eq('user_id', session.user.id)
+        .eq('user_id', userId)
         .eq('is_done', false)
         .lte('due_date', todayStr)
         .order('due_date', { ascending: true })
@@ -39,7 +39,7 @@ export async function GET() {
 
     const reminderNotifications = (reminderResult.data ?? []).map(r => ({
       id: `reminder-${r.id}`,
-      user_id: session.user.id,
+      user_id: userId,
       type: 'reminder' as const,
       is_read: false,
       created_at: r.created_at,
@@ -68,14 +68,14 @@ export async function GET() {
 // PATCH: 팀 알림 전체 읽음 처리
 export async function PATCH() {
   try {
-    const supabase = await createServerSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const auth = await getApiAuth(request)
+    if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const { supabase, userId } = auth
 
     const { error } = await supabase
       .from('notifications')
       .update({ is_read: true })
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
       .eq('is_read', false)
 
     if (error) throw error

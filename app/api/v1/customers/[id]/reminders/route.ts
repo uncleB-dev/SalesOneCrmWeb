@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { getApiAuth } from '@/lib/api-auth'
 import { z } from 'zod'
 import { createCalendarEvent } from '@/lib/google/calendar'
 
@@ -11,15 +11,15 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const supabase = await createServerSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const auth = await getApiAuth(request)
+  if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+  const { supabase, userId } = auth
 
     const { data, error } = await supabase
       .from('reminders')
       .select('*')
       .eq('customer_id', id)
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
       .order('due_date', { ascending: true })
     if (error) throw error
     return NextResponse.json({ data, success: true })
@@ -40,9 +40,9 @@ export async function POST(
 ) {
   try {
     const { id } = await params
-    const supabase = await createServerSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const auth = await getApiAuth(request)
+    if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const { supabase, userId } = auth
 
     const body = await request.json()
     const parsed = reminderSchema.safeParse(body)
@@ -50,7 +50,7 @@ export async function POST(
 
     const { data: reminder, error } = await supabase
       .from('reminders')
-      .insert({ ...parsed.data, customer_id: id, user_id: session.user.id })
+      .insert({ ...parsed.data, customer_id: id, user_id: userId })
       .select()
       .single()
     if (error) throw error
@@ -66,7 +66,7 @@ export async function POST(
         reminder.google_event_id = eventId
         await supabase.from('interactions').insert({
           customer_id: id,
-          user_id: session.user.id,
+          user_id: userId,
           type: '기타',
           content: '📅 구글 캘린더 일정 생성됨',
           occurred_at: new Date().toISOString(),

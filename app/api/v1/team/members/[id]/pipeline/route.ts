@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { getApiAuth } from '@/lib/api-auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,11 +9,11 @@ export async function GET(
 ) {
   try {
     const { id: targetUserId } = await params
-    const supabase = await createServerSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const auth = await getApiAuth(request)
+  if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+  const { supabase, userId } = auth
 
-    const requesterId = session.user.id
+    const requesterId = userId
 
     // Find requester's team
     const { data: ownTeam } = await supabase

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { getApiAuth } from '@/lib/api-auth'
 import { z } from 'zod'
 import { createGoogleContact } from '@/lib/google/contacts'
 
@@ -7,9 +7,9 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const auth = await getApiAuth(request)
+  if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+  const { supabase, userId } = auth
 
     const sp = request.nextUrl.searchParams
     const search = sp.get('search') || ''
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('customers')
       .select('*', { count: 'exact' })
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
       .is('deleted_at', null)
 
     if (search) {
@@ -66,9 +66,9 @@ const createSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const auth = await getApiAuth(request)
+    if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const { supabase, userId } = auth
 
     const body = await request.json()
     const parsed = createSchema.safeParse(body)
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
 
     const { data: customer, error } = await supabase
       .from('customers')
-      .insert({ ...customerFields, is_google_contact_synced, user_id: session.user.id })
+      .insert({ ...customerFields, is_google_contact_synced, user_id: userId })
       .select()
       .single()
     if (error) throw error
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
         customer.google_contact_id = contactId
         await supabase.from('interactions').insert({
           customer_id: customer.id,
-          user_id: session.user.id,
+          user_id: userId,
           type: '기타',
           content: '📇 구글 주소록 등록됨',
           occurred_at: new Date().toISOString(),

@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { getApiAuth } from '@/lib/api-auth'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createServerSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const auth = await getApiAuth(request)
+  if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+  const { supabase, userId } = auth
 
     const { code } = await request.json()
     if (!code?.trim()) {
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     // Check if user already manages a team
     const { count: ownCount } = await supabase
       .from('teams').select('*', { count: 'exact', head: true })
-      .eq('manager_id', session.user.id)
+      .eq('manager_id', userId)
     if (ownCount && ownCount > 0) {
       return NextResponse.json({ error: '이미 팀장으로 있는 팀이 있습니다', success: false }, { status: 400 })
     }
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     // Check if already an active member
     const { count: memberCount } = await supabase
       .from('team_members').select('*', { count: 'exact', head: true })
-      .eq('user_id', session.user.id).eq('status', 'active')
+      .eq('user_id', userId).eq('status', 'active')
     if (memberCount && memberCount > 0) {
       return NextResponse.json({ error: '이미 팀에 속해있습니다', success: false }, { status: 400 })
     }
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
       .from('team_members')
       .insert({
         team_id: inviteCode.team_id,
-        user_id: session.user.id,
+        user_id: userId,
         role: 'member',
         status: 'active',
         invited_by: inviteCode.created_by,
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
     // Mark code as used
     await supabase
       .from('team_invite_codes')
-      .update({ used_at: new Date().toISOString(), used_by: session.user.id, is_active: false })
+      .update({ used_at: new Date().toISOString(), used_by: userId, is_active: false })
       .eq('id', inviteCode.id)
 
     // Notify team manager
@@ -69,7 +69,7 @@ export async function POST(request: Request) {
     if (team?.manager_id) {
       await supabase.from('notifications').insert({
         user_id: team.manager_id,
-        from_user_id: session.user.id,
+        from_user_id: userId,
         type: 'team_accepted',
         team_id: inviteCode.team_id,
       })

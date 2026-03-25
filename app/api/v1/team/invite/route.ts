@@ -1,16 +1,16 @@
 import { NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { getApiAuth } from '@/lib/api-auth'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
-    const supabase = await createServerSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const auth = await getApiAuth(request)
+  if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+  const { supabase, userId } = auth
 
     const { data: team } = await supabase
-      .from('teams').select('id').eq('manager_id', session.user.id).maybeSingle()
+      .from('teams').select('id').eq('manager_id', userId).maybeSingle()
 
     if (!team) {
       return NextResponse.json({ error: '팀이 없거나 권한이 없습니다', success: false }, { status: 403 })
@@ -35,12 +35,12 @@ export async function GET() {
 
 export async function POST() {
   try {
-    const supabase = await createServerSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const auth = await getApiAuth(request)
+    if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const { supabase, userId } = auth
 
     const { data: team } = await supabase
-      .from('teams').select('id').eq('manager_id', session.user.id).maybeSingle()
+      .from('teams').select('id').eq('manager_id', userId).maybeSingle()
 
     if (!team) {
       return NextResponse.json({ error: '팀이 없거나 권한이 없습니다', success: false }, { status: 403 })
@@ -66,7 +66,7 @@ export async function POST() {
       .insert({
         team_id: team.id,
         code,
-        created_by: session.user.id,
+        created_by: userId,
         expires_at: expiresAt.toISOString(),
       })
       .select()

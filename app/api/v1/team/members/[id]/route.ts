@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { getApiAuth } from '@/lib/api-auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,17 +10,17 @@ export async function PATCH(
 ) {
   try {
     const { id: targetUserId } = await params
-    const supabase = await createServerSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const auth = await getApiAuth(request)
+  if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+  const { supabase, userId } = auth
 
-    if (targetUserId === session.user.id) {
+    if (targetUserId === userId) {
       return NextResponse.json({ error: '자신의 역할은 변경할 수 없습니다', success: false }, { status: 400 })
     }
 
     // Verify requester is team manager
     const { data: team } = await supabase
-      .from('teams').select('id').eq('manager_id', session.user.id).maybeSingle()
+      .from('teams').select('id').eq('manager_id', userId).maybeSingle()
     if (!team) {
       return NextResponse.json({ error: '팀장 권한이 없습니다', success: false }, { status: 403 })
     }
@@ -51,16 +51,16 @@ export async function DELETE(
 ) {
   try {
     const { id: targetUserId } = await params
-    const supabase = await createServerSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const auth = await getApiAuth(request)
+    if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const { supabase, userId } = auth
 
-    const isSelf = targetUserId === session.user.id
+    const isSelf = targetUserId === userId
 
     if (isSelf) {
       // Self-leave
       const { data: member } = await supabase
-        .from('team_members').select('id').eq('user_id', session.user.id).eq('status', 'active').maybeSingle()
+        .from('team_members').select('id').eq('user_id', userId).eq('status', 'active').maybeSingle()
       if (!member) {
         return NextResponse.json({ error: '팀원 정보를 찾을 수 없습니다', success: false }, { status: 404 })
       }
@@ -70,7 +70,7 @@ export async function DELETE(
 
     // Manager removing a member
     const { data: team } = await supabase
-      .from('teams').select('id').eq('manager_id', session.user.id).maybeSingle()
+      .from('teams').select('id').eq('manager_id', userId).maybeSingle()
     if (!team) {
       return NextResponse.json({ error: '팀장 권한이 없습니다', success: false }, { status: 403 })
     }
@@ -86,7 +86,7 @@ export async function DELETE(
     // Notify removed member
     await supabase.from('notifications').insert({
       user_id: targetUserId,
-      from_user_id: session.user.id,
+      from_user_id: userId,
       type: 'team_disconnected',
       team_id: team.id,
     })

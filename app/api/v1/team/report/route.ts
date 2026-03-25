@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { getApiAuth } from '@/lib/api-auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,9 +31,9 @@ function getPeriodDates(period: string): { startDate: string; endDate: string } 
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const auth = await getApiAuth(request)
+  if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+  const { supabase, userId } = auth
 
     const { searchParams } = new URL(request.url)
     const period = searchParams.get('period') ?? 'month'
@@ -41,13 +41,13 @@ export async function GET(request: NextRequest) {
 
     // Find user's team
     const { data: ownTeam } = await supabase
-      .from('teams').select('id, manager_id').eq('manager_id', session.user.id).maybeSingle()
+      .from('teams').select('id, manager_id').eq('manager_id', userId).maybeSingle()
 
     let team: any = ownTeam
     if (!team) {
       const { data: membership } = await supabase
         .from('team_members').select('*, teams(*)')
-        .eq('user_id', session.user.id).eq('status', 'active').maybeSingle()
+        .eq('user_id', userId).eq('status', 'active').maybeSingle()
       team = (membership?.teams as any) ?? null
     }
 

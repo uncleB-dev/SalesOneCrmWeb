@@ -1,20 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { getApiAuth } from '@/lib/api-auth'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const auth = await getApiAuth(request)
+  if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+  const { supabase, userId } = auth
 
     const stageType = request.nextUrl.searchParams.get('stage_type') || 'all'
 
     let query = supabase
       .from('pipeline_stages')
       .select('*')
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
       .order('order_index', { ascending: true })
 
     if (stageType !== 'all') {
@@ -31,9 +31,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const auth = await getApiAuth(request)
+    if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const { supabase, userId } = auth
 
     const body = await request.json()
     const { stages } = body
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     const stagesToUpsert = stages.map((s: any) => ({
       id: s.id || undefined,
-      user_id: session.user.id,
+      user_id: userId,
       name: s.name,
       color: s.color,
       order_index: s.order_index,

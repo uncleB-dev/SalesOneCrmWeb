@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { getApiAuth } from '@/lib/api-auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,9 +10,9 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params
-    const supabase = await createServerSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const auth = await getApiAuth(request)
+  if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+  const { supabase, userId } = auth
 
     const { name, color } = await request.json()
 
@@ -23,7 +23,7 @@ export async function PATCH(
       .single()
 
     if (!stage) return NextResponse.json({ error: '단계를 찾을 수 없습니다', success: false }, { status: 404 })
-    if (stage.user_id !== session.user.id) return NextResponse.json({ error: 'Forbidden', success: false }, { status: 403 })
+    if (stage.user_id !== userId) return NextResponse.json({ error: 'Forbidden', success: false }, { status: 403 })
 
     const updates: Record<string, string> = {}
     if (name && name !== stage.name) updates.name = name
@@ -42,7 +42,7 @@ export async function PATCH(
       await supabase
         .from('customers')
         .update({ stage: name })
-        .eq('user_id', session.user.id)
+        .eq('user_id', userId)
         .eq('stage', stage.name)
     }
 
@@ -58,9 +58,9 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    const supabase = await createServerSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const auth = await getApiAuth(request)
+    if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const { supabase, userId } = auth
 
     // get stage name
     const { data: stage } = await supabase
@@ -70,14 +70,14 @@ export async function DELETE(
       .single()
 
     if (!stage) return NextResponse.json({ error: '단계를 찾을 수 없습니다', success: false }, { status: 404 })
-    if (stage.user_id !== session.user.id) return NextResponse.json({ error: 'Forbidden', success: false }, { status: 403 })
+    if (stage.user_id !== userId) return NextResponse.json({ error: 'Forbidden', success: false }, { status: 403 })
 
     // check customers
     const { count } = await supabase
       .from('customers')
       .select('id', { count: 'exact', head: true })
       .eq('stage', stage.name)
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
       .is('deleted_at', null)
 
     if (count && count > 0) {

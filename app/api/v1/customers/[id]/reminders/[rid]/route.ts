@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { getApiAuth } from '@/lib/api-auth'
 import { updateCalendarEvent, deleteCalendarEvent } from '@/lib/google/calendar'
 
 export const dynamic = 'force-dynamic'
@@ -10,9 +10,9 @@ export async function PATCH(
 ) {
   try {
     const { id, rid } = await params
-    const supabase = await createServerSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const auth = await getApiAuth(request)
+  if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+  const { supabase, userId } = auth
 
     const body = await request.json()
     const { data, error } = await supabase
@@ -20,7 +20,7 @@ export async function PATCH(
       .update(body)
       .eq('id', rid)
       .eq('customer_id', id)
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
       .select()
       .single()
     if (error) throw error
@@ -36,7 +36,7 @@ export async function PATCH(
         })
         await supabase.from('interactions').insert({
           customer_id: id,
-          user_id: session.user.id,
+          user_id: userId,
           type: '기타',
           content: '📅 구글 캘린더 일정 수정됨',
           occurred_at: new Date().toISOString(),
@@ -58,9 +58,9 @@ export async function DELETE(
 ) {
   try {
     const { id, rid } = await params
-    const supabase = await createServerSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const auth = await getApiAuth(request)
+    if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const { supabase, userId } = auth
 
     // Fetch before delete to get google_event_id
     const { data: reminder } = await supabase
@@ -71,7 +71,7 @@ export async function DELETE(
       .delete()
       .eq('id', rid)
       .eq('customer_id', id)
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
     if (error) throw error
 
     // Google Calendar 이벤트 삭제 (fire-and-forget)
@@ -79,7 +79,7 @@ export async function DELETE(
       deleteCalendarEvent(session.provider_token, reminder.google_event_id).catch(() => {})
       supabase.from('interactions').insert({
         customer_id: id,
-        user_id: session.user.id,
+        user_id: userId,
         type: '기타',
         content: '📅 구글 캘린더 일정 삭제됨',
         occurred_at: new Date().toISOString(),

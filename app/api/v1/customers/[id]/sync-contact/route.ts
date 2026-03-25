@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { getApiAuth } from '@/lib/api-auth'
 import { createGoogleContact } from '@/lib/google/contacts'
 
 export const dynamic = 'force-dynamic'
@@ -10,9 +10,9 @@ export async function POST(
 ) {
   try {
     const { id } = await params
-    const supabase = await createServerSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const auth = await getApiAuth(request)
+  if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+  const { supabase, userId } = auth
 
     if (!session.provider_token) {
       return NextResponse.json({ error: '구글 로그인이 필요합니다. 재로그인 후 시도해주세요.', success: false }, { status: 400 })
@@ -22,7 +22,7 @@ export async function POST(
       .from('customers')
       .select('*')
       .eq('id', id)
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
       .is('deleted_at', null)
       .single()
     if (fetchError || !customer) {
@@ -41,7 +41,7 @@ export async function POST(
 
     await supabase.from('interactions').insert({
       customer_id: id,
-      user_id: session.user.id,
+      user_id: userId,
       type: '기타',
       content: '📇 구글 주소록에 등록되었습니다',
       occurred_at: new Date().toISOString(),

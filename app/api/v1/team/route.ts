@@ -1,15 +1,15 @@
 import { NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { getApiAuth } from '@/lib/api-auth'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
-    const supabase = await createServerSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const auth = await getApiAuth(request)
+  if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+  const { supabase, userId } = auth
 
-    const userId = session.user.id
+    const userId = userId
 
     // Check if user is a team manager
     const { data: ownTeam } = await supabase
@@ -121,9 +121,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createServerSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const auth = await getApiAuth(request)
+    if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const { supabase, userId } = auth
 
     const { name } = await request.json()
     if (!name?.trim()) {
@@ -133,7 +133,7 @@ export async function POST(request: Request) {
     // Check if user already manages a team
     const { count: ownCount } = await supabase
       .from('teams').select('*', { count: 'exact', head: true })
-      .eq('manager_id', session.user.id)
+      .eq('manager_id', userId)
     if (ownCount && ownCount > 0) {
       return NextResponse.json({ error: '이미 팀이 있습니다', success: false }, { status: 400 })
     }
@@ -141,14 +141,14 @@ export async function POST(request: Request) {
     // Check if user is already a member
     const { count: memberCount } = await supabase
       .from('team_members').select('*', { count: 'exact', head: true })
-      .eq('user_id', session.user.id).eq('status', 'active')
+      .eq('user_id', userId).eq('status', 'active')
     if (memberCount && memberCount > 0) {
       return NextResponse.json({ error: '이미 팀에 속해있습니다', success: false }, { status: 400 })
     }
 
     const { data: team, error } = await supabase
       .from('teams')
-      .insert({ name: name.trim(), manager_id: session.user.id })
+      .insert({ name: name.trim(), manager_id: userId })
       .select()
       .single()
 

@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { getApiAuth } from '@/lib/api-auth'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const auth = await getApiAuth(request)
+  if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+  const { supabase, userId } = auth
 
     const { searchParams } = new URL(request.url)
     const filter = searchParams.get('filter') ?? 'all'
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('reminders')
       .select('*, customers(id, name, stage)')
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
       .order('due_date', { ascending: true })
 
     if (filter === 'today') {

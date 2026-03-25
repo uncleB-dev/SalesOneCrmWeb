@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { getApiAuth } from '@/lib/api-auth'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -10,15 +10,15 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const supabase = await createServerSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const auth = await getApiAuth(request)
+  if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+  const { supabase, userId } = auth
 
     const { data, error } = await supabase
       .from('interactions')
       .select('*')
       .eq('customer_id', id)
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
       .order('occurred_at', { ascending: false })
     if (error) throw error
     return NextResponse.json({ data, success: true })
@@ -41,9 +41,9 @@ export async function POST(
 ) {
   try {
     const { id } = await params
-    const supabase = await createServerSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const auth = await getApiAuth(request)
+    if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const { supabase, userId } = auth
 
     const body = await request.json()
     const parsed = interactionSchema.safeParse(body)
@@ -51,7 +51,7 @@ export async function POST(
 
     const { data, error } = await supabase
       .from('interactions')
-      .insert({ ...parsed.data, customer_id: id, user_id: session.user.id })
+      .insert({ ...parsed.data, customer_id: id, user_id: userId })
       .select()
       .single()
     if (error) throw error

@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { getApiAuth } from '@/lib/api-auth'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient()
+    const auth = await getApiAuth(request)
+    if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const { supabase, userId } = auth
+
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
 
@@ -13,14 +16,14 @@ export async function GET() {
     let { data: profile } = await supabase
       .from('user_profiles')
       .select('*')
-      .eq('id', user.id)
+      .eq('id', userId)
       .single()
 
     if (!profile) {
       const { data: created } = await supabase
         .from('user_profiles')
         .insert({
-          id: user.id,
+          id: userId,
           name: user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.email,
           avatar_url: user.user_metadata?.avatar_url ?? null,
         })
@@ -49,9 +52,9 @@ export async function GET() {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const auth = await getApiAuth(request)
+    if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const { supabase, userId } = auth
 
     const body = await request.json()
     const { name, phone } = body
@@ -62,12 +65,11 @@ export async function PATCH(request: NextRequest) {
 
     const { data, error } = await supabase
       .from('user_profiles')
-      .upsert({ id: user.id, ...updates })
+      .upsert({ id: userId, ...updates })
       .select()
       .single()
     if (error) throw error
 
-    // auth.users metadata도 동기화
     if (name !== undefined) {
       await supabase.auth.updateUser({ data: { full_name: name, name } })
     }

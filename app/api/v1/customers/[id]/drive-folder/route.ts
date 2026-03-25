@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { getApiAuth } from '@/lib/api-auth'
 import { createDriveFolder } from '@/lib/google/drive'
 
 export const dynamic = 'force-dynamic'
@@ -10,16 +10,16 @@ export async function POST(
 ) {
   try {
     const { id } = await params
-    const supabase = await createServerSupabaseClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const auth = await getApiAuth(request)
+  if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+  const { supabase, userId } = auth
 
     if (!session.provider_token) {
       return NextResponse.json({ error: 'Google 인증이 필요합니다. 재로그인해주세요.', success: false }, { status: 401 })
     }
 
     const { data: customer, error: fetchError } = await supabase
-      .from('customers').select('name, google_drive_folder_id').eq('id', id).eq('user_id', session.user.id).single()
+      .from('customers').select('name, google_drive_folder_id').eq('id', id).eq('user_id', userId).single()
     if (fetchError || !customer) {
       return NextResponse.json({ error: '고객을 찾을 수 없습니다', success: false }, { status: 404 })
     }
@@ -34,14 +34,14 @@ export async function POST(
       .from('customers')
       .update({ google_drive_folder_id: folderId })
       .eq('id', id)
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
       .select()
       .single()
     if (error) throw error
 
     await supabase.from('interactions').insert({
       customer_id: id,
-      user_id: session.user.id,
+      user_id: userId,
       type: '기타',
       content: '📁 구글 드라이브 폴더 생성됨',
       occurred_at: new Date().toISOString(),
