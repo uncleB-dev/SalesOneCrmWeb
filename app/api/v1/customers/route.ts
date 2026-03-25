@@ -48,9 +48,17 @@ export async function GET(request: NextRequest) {
   }
 }
 
+function normalizePhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '')
+  if (digits.length === 11 && digits.startsWith('010')) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`
+  }
+  return phone
+}
+
 const createSchema = z.object({
   name: z.string().min(1),
-  phone: z.string().regex(/^010-\d{4}-\d{4}$/),
+  phone: z.string().regex(/^010-?\d{4}-?\d{4}$/).transform(normalizePhone),
   email: z.string().email().optional().or(z.literal('')).nullable(),
   birth_date: z.string().optional().nullable(),
   gender: z.enum(['남', '여']).optional().nullable(),
