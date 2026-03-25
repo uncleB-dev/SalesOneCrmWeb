@@ -85,11 +85,14 @@ export async function POST(request: NextRequest) {
       .single()
     if (error) throw error
 
+    const { data: { session } } = await supabase.auth.getSession()
+    const providerToken = session?.provider_token ?? null
+
     // Google Contacts 연동
     let googleWarning: string | null = null
-    if (is_google_contact_synced && session.provider_token) {
+    if (is_google_contact_synced && providerToken) {
       try {
-        const contactId = await createGoogleContact(session.provider_token, customer)
+        const contactId = await createGoogleContact(providerToken, customer)
         await supabase.from('customers').update({ google_contact_id: contactId }).eq('id', customer.id)
         customer.google_contact_id = contactId
         await supabase.from('interactions').insert({

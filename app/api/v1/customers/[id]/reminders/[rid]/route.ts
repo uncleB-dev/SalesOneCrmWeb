@@ -25,11 +25,14 @@ export async function PATCH(
       .single()
     if (error) throw error
 
+    const { data: { session } } = await supabase.auth.getSession()
+    const providerToken = session?.provider_token ?? null
+
     // Google Calendar 업데이트 (due_date 또는 memo 변경 시)
     let googleWarning: string | null = null
-    if (data.google_event_id && session.provider_token && (body.due_date !== undefined || body.memo !== undefined || body.start_time !== undefined)) {
+    if (data.google_event_id && providerToken && (body.due_date !== undefined || body.memo !== undefined || body.start_time !== undefined)) {
       try {
-        await updateCalendarEvent(session.provider_token, data.google_event_id, {
+        await updateCalendarEvent(providerToken, data.google_event_id, {
           due_date: body.due_date ?? data.due_date,
           start_time: body.start_time ?? data.start_time,
           memo: body.memo,
@@ -74,9 +77,12 @@ export async function DELETE(
       .eq('user_id', userId)
     if (error) throw error
 
+    const { data: { session: deleteSession } } = await supabase.auth.getSession()
+    const deleteProviderToken = deleteSession?.provider_token ?? null
+
     // Google Calendar 이벤트 삭제 (fire-and-forget)
-    if (reminder?.google_event_id && session.provider_token) {
-      deleteCalendarEvent(session.provider_token, reminder.google_event_id).catch(() => {})
+    if (reminder?.google_event_id && deleteProviderToken) {
+      deleteCalendarEvent(deleteProviderToken, reminder.google_event_id).catch(() => {})
       supabase.from('interactions').insert({
         customer_id: id,
         user_id: userId,

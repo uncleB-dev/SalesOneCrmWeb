@@ -14,7 +14,10 @@ export async function POST(
   if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
   const { supabase, userId } = auth
 
-    if (!session.provider_token) {
+    const { data: { session } } = await supabase.auth.getSession()
+    const providerToken = session?.provider_token ?? null
+
+    if (!providerToken) {
       return NextResponse.json({ error: '구글 로그인이 필요합니다. 재로그인 후 시도해주세요.', success: false }, { status: 400 })
     }
 
@@ -29,7 +32,7 @@ export async function POST(
       return NextResponse.json({ error: '고객을 찾을 수 없습니다.', success: false }, { status: 404 })
     }
 
-    const googleContactId = await createGoogleContact(session.provider_token, customer)
+    const googleContactId = await createGoogleContact(providerToken, customer)
 
     const { data: updated, error: updateError } = await supabase
       .from('customers')

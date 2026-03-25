@@ -83,11 +83,14 @@ export async function PATCH(
       .single()
     if (error) throw error
 
+    const { data: { session } } = await supabase.auth.getSession()
+    const providerToken = session?.provider_token ?? null
+
     // Google Contacts 업데이트
     let googleWarning: string | null = null
-    if (data.google_contact_id && data.is_google_contact_synced && session.provider_token) {
+    if (data.google_contact_id && data.is_google_contact_synced && providerToken) {
       try {
-        await updateGoogleContact(session.provider_token, data.google_contact_id, data)
+        await updateGoogleContact(providerToken, data.google_contact_id, data)
         await supabase.from('interactions').insert({
           customer_id: id,
           user_id: userId,
@@ -127,9 +130,12 @@ export async function DELETE(
       .eq('user_id', userId)
     if (error) throw error
 
+    const { data: { session: deleteSession } } = await supabase.auth.getSession()
+    const deleteProviderToken = deleteSession?.provider_token ?? null
+
     // Google Contacts 삭제 (fire-and-forget)
-    if (customer?.google_contact_id && session.provider_token) {
-      deleteGoogleContact(session.provider_token, customer.google_contact_id).catch(() => {})
+    if (customer?.google_contact_id && deleteProviderToken) {
+      deleteGoogleContact(deleteProviderToken, customer.google_contact_id).catch(() => {})
     }
 
     return NextResponse.json({ success: true })

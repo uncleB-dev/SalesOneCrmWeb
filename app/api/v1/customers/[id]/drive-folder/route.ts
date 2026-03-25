@@ -14,7 +14,10 @@ export async function POST(
   if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
   const { supabase, userId } = auth
 
-    if (!session.provider_token) {
+    const { data: { session } } = await supabase.auth.getSession()
+    const providerToken = session?.provider_token ?? null
+
+    if (!providerToken) {
       return NextResponse.json({ error: 'Google 인증이 필요합니다. 재로그인해주세요.', success: false }, { status: 401 })
     }
 
@@ -28,7 +31,7 @@ export async function POST(
       return NextResponse.json({ error: '이미 드라이브 폴더가 연결되어 있습니다', success: false }, { status: 400 })
     }
 
-    const folderId = await createDriveFolder(session.provider_token, customer.name)
+    const folderId = await createDriveFolder(providerToken, customer.name)
 
     const { data: updated, error } = await supabase
       .from('customers')

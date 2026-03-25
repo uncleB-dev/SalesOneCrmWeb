@@ -21,7 +21,10 @@ export async function GET(
       return NextResponse.json({ data: [], success: true })
     }
 
-    if (!session.provider_token) {
+    const { data: { session } } = await supabase.auth.getSession()
+    const providerToken = session?.provider_token ?? null
+
+    if (!providerToken) {
       // Return only snapshot from DB if no token
       const { data: snapshot } = await supabase
         .from('customer_drive_files')
@@ -30,7 +33,7 @@ export async function GET(
     }
 
     // Fetch current files from Drive
-    const driveFiles = await getDriveFolderFiles(session.provider_token, customer.google_drive_folder_id)
+    const driveFiles = await getDriveFolderFiles(providerToken, customer.google_drive_folder_id)
     const now = new Date().toISOString()
     const driveFileIds = new Set(driveFiles.map(f => f.id))
 

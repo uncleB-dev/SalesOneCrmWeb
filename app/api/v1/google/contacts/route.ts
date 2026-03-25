@@ -20,7 +20,8 @@ export async function GET(request: NextRequest) {
   if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
   const { supabase, userId } = auth
 
-    const providerToken = session.provider_token
+    const { data: { session } } = await supabase.auth.getSession()
+    const providerToken = session?.provider_token ?? null
     if (!providerToken) {
       return NextResponse.json({ error: 'REAUTH_REQUIRED', success: false }, { status: 401 })
     }

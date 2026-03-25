@@ -55,13 +55,16 @@ export async function POST(
       .single()
     if (error) throw error
 
+    const { data: { session } } = await supabase.auth.getSession()
+    const providerToken = session?.provider_token ?? null
+
     // Google Calendar 이벤트 생성
     let googleWarning: string | null = null
-    if (session.provider_token) {
+    if (providerToken) {
       try {
         const { data: customer } = await supabase
           .from('customers').select('name').eq('id', id).single()
-        const eventId = await createCalendarEvent(session.provider_token, reminder, customer?.name ?? '고객')
+        const eventId = await createCalendarEvent(providerToken, reminder, customer?.name ?? '고객')
         await supabase.from('reminders').update({ google_event_id: eventId }).eq('id', reminder.id)
         reminder.google_event_id = eventId
         await supabase.from('interactions').insert({
