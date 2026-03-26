@@ -1,0 +1,58 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getApiAuth } from '@/lib/api-auth'
+
+export const dynamic = 'force-dynamic'
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    const auth = await getApiAuth(request)
+    if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const { supabase, userId } = auth
+
+    const { error } = await supabase
+      .from('interactions')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId)
+    if (error) throw error
+
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message, success: false }, { status: 500 })
+  }
+}
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    const auth = await getApiAuth(request)
+    if (!auth) return NextResponse.json({ error: 'Unauthorized', success: false }, { status: 401 })
+    const { supabase, userId } = auth
+
+    const body = await request.json()
+    const { content } = body
+    if (!content || typeof content !== 'string' || content.trim() === '') {
+      return NextResponse.json({ error: 'content is required', success: false }, { status: 400 })
+    }
+
+    const { data, error } = await supabase
+      .from('interactions')
+      .update({ content: content.trim() })
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select()
+      .single()
+    if (error) throw error
+
+    return NextResponse.json({ data, success: true })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message, success: false }, { status: 500 })
+  }
+}
