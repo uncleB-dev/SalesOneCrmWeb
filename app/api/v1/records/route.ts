@@ -57,10 +57,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { file_name, phone_number, occurred_at, duration, summary, action_items, sentiment, raw_text } = body
 
-    if (!file_name) {
-      return NextResponse.json({ error: 'file_name is required', success: false }, { status: 400 })
-    }
-
     // 전화번호로 고객 매칭 시도
     let customerId: string | null = null
     let isMatched = false
