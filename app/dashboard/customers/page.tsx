@@ -10,14 +10,19 @@ export default async function CustomersPage() {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) redirect('/auth')
 
-  const [{ data: customers }, { data: stages }] = await Promise.all([
+  const [{ data: customers, count: total }, { data: allStages }, { data: stages }] = await Promise.all([
     supabase
       .from('customers')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('user_id', session.user.id)
       .is('deleted_at', null)
       .order('created_at', { ascending: false })
-      .limit(50),
+      .range(0, 49),
+    supabase
+      .from('customers')
+      .select('stage')
+      .eq('user_id', session.user.id)
+      .is('deleted_at', null),
     supabase
       .from('pipeline_stages')
       .select('*')
@@ -25,5 +30,17 @@ export default async function CustomersPage() {
       .order('order_index', { ascending: true }),
   ])
 
-  return <CustomersClient initialCustomers={customers ?? []} stages={stages ?? []} />
+  const stageCounts = (allStages ?? []).reduce((acc, c) => {
+    acc[c.stage] = (acc[c.stage] ?? 0) + 1
+    return acc
+  }, {} as Record<string, number>)
+
+  return (
+    <CustomersClient
+      initialCustomers={customers ?? []}
+      initialTotal={total ?? 0}
+      initialStageCounts={stageCounts}
+      stages={stages ?? []}
+    />
+  )
 }

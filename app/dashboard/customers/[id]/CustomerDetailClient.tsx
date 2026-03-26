@@ -10,6 +10,7 @@ import StageBadge from '@/components/customers/StageBadge'
 import CustomerForm from '@/components/customers/CustomerForm'
 import InteractionTimeline from '@/components/customers/InteractionTimeline'
 import ReminderList from '@/components/reminders/ReminderItem'
+import { createClient } from '@/lib/supabase'
 import type { Customer, PipelineStage, Interaction, Reminder, DriveFileRecord } from '@/types'
 
 interface Props {
@@ -40,10 +41,19 @@ export default function CustomerDetailClient({ customer: initialCustomer, stages
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   useEffect(() => {
-    fetch(`/api/v1/customers/${customer.id}/drive-files`)
-      .then(r => r.json())
-      .then(r => { if (r.success) setDriveFiles(r.data) })
-      .catch(() => {})
+    const loadDriveFiles = async () => {
+      try {
+        const supabase = createClient()
+        const { data: { session } } = await supabase.auth.getSession()
+        const providerToken = session?.provider_token ?? ''
+        const res = await fetch(`/api/v1/customers/${customer.id}/drive-files`, {
+          headers: providerToken ? { 'X-Provider-Token': providerToken } : {},
+        })
+        const r = await res.json()
+        if (r.success) setDriveFiles(r.data)
+      } catch {}
+    }
+    loadDriveFiles()
   }, [customer.id])
 
   const fetchInteractions = async () => {
@@ -53,7 +63,12 @@ export default function CustomerDetailClient({ customer: initialCustomer, stages
   }
 
   const fetchDriveFiles = async () => {
-    const res = await fetch(`/api/v1/customers/${customer.id}/drive-files`)
+    const supabase = createClient()
+    const { data: { session } } = await supabase.auth.getSession()
+    const providerToken = session?.provider_token ?? ''
+    const res = await fetch(`/api/v1/customers/${customer.id}/drive-files`, {
+      headers: providerToken ? { 'X-Provider-Token': providerToken } : {},
+    })
     const result = await res.json()
     if (result.success) setDriveFiles(result.data)
   }

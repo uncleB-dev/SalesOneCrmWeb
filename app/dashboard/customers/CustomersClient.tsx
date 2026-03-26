@@ -1,34 +1,43 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Search, ChevronUp, ChevronDown, Phone, Upload, BookUser } from 'lucide-react'
-import { toast } from 'sonner'
-import { formatRelative, formatDate } from '@/lib/utils/format'
+import { Plus, Search, ChevronUp, ChevronDown, Phone, Upload, BookUser, ChevronLeft, ChevronRight } from 'lucide-react'
+import { formatDate } from '@/lib/utils/format'
 import StageBadge from '@/components/customers/StageBadge'
 import CustomerForm from '@/components/customers/CustomerForm'
 import CsvImportModal from '@/components/customers/CsvImportModal'
 import GoogleContactsImportModal from '@/components/customers/GoogleContactsImportModal'
 import type { Customer, PipelineStage } from '@/types'
 
+const LIMIT = 50
+
 interface Props {
   initialCustomers: Customer[]
+  initialTotal: number
+  initialStageCounts: Record<string, number>
   stages: PipelineStage[]
 }
 
 type SortField = 'name' | 'stage' | 'created_at' | 'updated_at'
 
-export default function CustomersClient({ initialCustomers, stages }: Props) {
+export default function CustomersClient({ initialCustomers, initialTotal, initialStageCounts, stages }: Props) {
   const router = useRouter()
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers)
+  const [total, setTotal] = useState(initialTotal)
+  const [stageCounts, setStageCounts] = useState(initialStageCounts)
   const [search, setSearch] = useState('')
   const [stageFilter, setStageFilter] = useState('전체')
   const [sortField, setSortField] = useState<SortField>('created_at')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [page, setPage] = useState(1)
+  const [isLoading, setIsLoading] = useState(false)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false)
   const [isGoogleContactsModalOpen, setIsGoogleContactsModalOpen] = useState(false)
+
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const pipelineStages = stages.filter(s => s.stage_type === 'pipeline')
   const escapeStages = stages.filter(s => s.stage_type === 'escape')
@@ -38,41 +47,93 @@ export default function CustomersClient({ initialCustomers, stages }: Props) {
     [stages]
   )
 
-  const countByStage = useMemo(() =>
-    customers.reduce((acc, c) => {
-      acc[c.stage] = (acc[c.stage] ?? 0) + 1
-      return acc
-    }, {} as Record<string, number>),
-    [customers]
-  )
+  const totalPages = Math.ceil(total / LIMIT)
 
-  const filtered = useMemo(() => {
-    let list = [...customers]
-    if (search) {
-      const q = search.toLowerCase()
-      list = list.filter(c =>
-        c.name.toLowerCase().includes(q) || c.phone.includes(q)
-      )
+  const doFetch = useCallback(async (
+    pg: number,
+    srch: string,
+    stg: string,
+    sf: SortField,
+    so: 'asc' | 'desc',
+  ) => {
+    setIsLoading(true)
+    try {
+      const params = new URLSearchParams({
+        page: String(pg),
+        limit: String(LIMIT),
+        sort_field: sf,
+        sort_order: so,
+      })
+      if (srch) params.set('search', srch)
+      if (stg !== '전체') params.set('stage', stg)
+
+      const res = await fetch(`/api/v1/customers?${params}`)
+      const result = await res.json()
+      if (result.success) {
+        setCustomers(result.data)
+        setTotal(result.total)
+      }
+    } finally {
+      setIsLoading(false)
     }
-    if (stageFilter !== '전체') {
-      list = list.filter(c => c.stage === stageFilter)
-    }
-    list.sort((a, b) => {
-      const av = a[sortField as keyof Customer] as string ?? ''
-      const bv = b[sortField as keyof Customer] as string ?? ''
-      return sortOrder === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
-    })
-    return list
-  }, [customers, search, stageFilter, sortField, sortOrder])
+  }, [])
+
+  const refreshStageCounts = useCallback(async () => {
+    const res = await fetch('/api/v1/customers/stage-counts')
+    const result = await res.json()
+    if (result.success) setStageCounts(result.data)
+  }, [])
+
+  const handleSearch = (value: string) => {
+    setSearch(value)
+    if (searchTimer.current) clearTimeout(searchTimer.current)
+    searchTimer.current = setTimeout(() => {
+      setPage(1)
+      doFetch(1, value, stageFilter, sortField, sortOrder)
+    }, 300)
+  }
+
+  const handleStageFilter = (stage: string) => {
+    setStageFilter(stage)
+    setPage(1)
+    doFetch(1, search, stage, sortField, sortOrder)
+  }
 
   const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortOrder(o => o === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortField(field)
-      setSortOrder('asc')
-    }
+    const newOrder: 'asc' | 'desc' = sortField === field
+      ? (sortOrder === 'asc' ? 'desc' : 'asc')
+      : 'asc'
+    setSortField(field)
+    setSortOrder(newOrder)
+    setPage(1)
+    doFetch(1, search, stageFilter, field, newOrder)
   }
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || newPage > totalPages) return
+    setPage(newPage)
+    doFetch(newPage, search, stageFilter, sortField, sortOrder)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const handleFormSuccess = useCallback((customer: Customer) => {
+    setIsFormOpen(false)
+    setEditingCustomer(null)
+    setPage(1)
+    doFetch(1, search, stageFilter, sortField, sortOrder)
+    refreshStageCounts()
+  }, [search, stageFilter, sortField, sortOrder, doFetch, refreshStageCounts])
+
+  const handleEdit = (customer: Customer) => {
+    setEditingCustomer(customer)
+    setIsFormOpen(true)
+  }
+
+  const handleBulkImportSuccess = useCallback(() => {
+    setPage(1)
+    doFetch(1, search, stageFilter, sortField, sortOrder)
+    refreshStageCounts()
+  }, [search, stageFilter, sortField, sortOrder, doFetch, refreshStageCounts])
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return <ChevronUp size={14} className="opacity-20" />
@@ -81,41 +142,20 @@ export default function CustomersClient({ initialCustomers, stages }: Props) {
       : <ChevronDown size={14} className="text-[#38BDF8]" />
   }
 
-  const handleFormSuccess = useCallback((customer: Customer) => {
-    setCustomers(prev => {
-      const exists = prev.find(c => c.id === customer.id)
-      if (exists) return prev.map(c => c.id === customer.id ? customer : c)
-      return [customer, ...prev]
-    })
-    setIsFormOpen(false)
-    setEditingCustomer(null)
-  }, [])
-
-  const handleEdit = (customer: Customer) => {
-    setEditingCustomer(customer)
-    setIsFormOpen(true)
-  }
-
-  const handleBulkImportSuccess = useCallback(() => {
-    router.refresh()
-  }, [router])
-
   return (
     <div className="p-4 md:p-6">
       {/* 툴바 */}
       <div className="flex flex-col gap-2 mb-4">
-        {/* 검색 */}
         <div className="relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
           <input
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={e => handleSearch(e.target.value)}
             placeholder="이름 또는 전화번호 검색..."
             className="w-full pl-9 pr-4 py-2.5 border border-[#E2E8F0] rounded-lg text-base bg-white focus:outline-none focus:ring-2 focus:ring-[#38BDF8]/30 focus:border-[#38BDF8]"
           />
         </div>
 
-        {/* 가져오기 버튼 + 고객 추가 (PC) */}
         <div className="flex gap-2 overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden">
           <button
             onClick={() => setIsCsvModalOpen(true)}
@@ -133,7 +173,6 @@ export default function CustomersClient({ initialCustomers, stages }: Props) {
             주소록 가져오기
           </button>
 
-          {/* 고객 추가: PC에서만 툴바에 표시, 모바일은 FAB */}
           <button
             onClick={() => { setEditingCustomer(null); setIsFormOpen(true) }}
             className="hidden md:flex items-center gap-2 px-4 py-2.5 bg-[#0F172A] text-white rounded-lg text-sm font-medium hover:bg-[#1e293b] whitespace-nowrap flex-shrink-0"
@@ -144,29 +183,29 @@ export default function CustomersClient({ initialCustomers, stages }: Props) {
         </div>
       </div>
 
-      {/* 단계 필터 버튼 — 모바일: 가로 스크롤 */}
+      {/* 단계 필터 버튼 */}
       <div className="flex overflow-x-auto gap-1.5 mb-4 pb-1 -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap [&::-webkit-scrollbar]:hidden">
         <button
-          onClick={() => setStageFilter('전체')}
+          onClick={() => handleStageFilter('전체')}
           className="px-3 py-1 rounded-full text-xs font-medium transition-colors border flex-shrink-0 min-h-[32px]"
           style={stageFilter === '전체'
             ? { backgroundColor: '#38BDF8', color: '#fff', borderColor: '#38BDF8' }
             : { backgroundColor: '#fff', color: '#64748B', borderColor: '#E2E8F0' }
           }
         >
-          전체 {customers.length}
+          전체 {initialTotal}
         </button>
         {pipelineStages.map(s => (
           <button
             key={s.id}
-            onClick={() => setStageFilter(s.name)}
+            onClick={() => handleStageFilter(s.name)}
             className="px-3 py-1 rounded-full text-xs font-medium transition-colors border flex-shrink-0 whitespace-nowrap min-h-[32px]"
             style={stageFilter === s.name
               ? { backgroundColor: s.color, color: '#fff', borderColor: s.color }
               : { backgroundColor: '#fff', color: '#64748B', borderColor: '#E2E8F0' }
             }
           >
-            {s.name} {countByStage[s.name] ?? 0}
+            {s.name} {stageCounts[s.name] ?? 0}
           </button>
         ))}
         {escapeStages.length > 0 && (
@@ -175,14 +214,14 @@ export default function CustomersClient({ initialCustomers, stages }: Props) {
             {escapeStages.map(s => (
               <button
                 key={s.id}
-                onClick={() => setStageFilter(s.name)}
+                onClick={() => handleStageFilter(s.name)}
                 className="px-3 py-1 rounded-full text-xs font-medium transition-colors border flex-shrink-0 whitespace-nowrap min-h-[32px]"
                 style={stageFilter === s.name
                   ? { backgroundColor: s.color, color: '#fff', borderColor: s.color }
                   : { backgroundColor: '#fff', color: '#64748B', borderColor: '#E2E8F0' }
                 }
               >
-                {s.name} {countByStage[s.name] ?? 0}
+                {s.name} {stageCounts[s.name] ?? 0}
               </button>
             ))}
           </>
@@ -190,11 +229,14 @@ export default function CustomersClient({ initialCustomers, stages }: Props) {
       </div>
 
       <p className="text-sm text-[#64748B] mb-3">
-        총 <span className="font-semibold text-[#1E293B]">{filtered.length}</span>명
+        총 <span className="font-semibold text-[#1E293B]">{total}</span>명
+        {totalPages > 1 && (
+          <span className="ml-2 text-[#94A3B8]">({page} / {totalPages} 페이지)</span>
+        )}
       </p>
 
       {/* PC 테이블 */}
-      <div className="hidden md:block bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
+      <div className={`hidden md:block bg-white rounded-xl border border-[#E2E8F0] overflow-hidden transition-opacity ${isLoading ? 'opacity-50' : ''}`}>
         <table className="w-full">
           <thead>
             <tr className="border-b border-[#E2E8F0] bg-[#F8FAFC]">
@@ -220,14 +262,14 @@ export default function CustomersClient({ initialCustomers, stages }: Props) {
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 ? (
+            {customers.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-12 text-center text-sm text-[#94A3B8]">
-                  고객이 없습니다. 첫 고객을 추가해보세요.
+                  {isLoading ? '불러오는 중...' : '고객이 없습니다. 첫 고객을 추가해보세요.'}
                 </td>
               </tr>
             ) : (
-              filtered.map(customer => (
+              customers.map(customer => (
                 <tr
                   key={customer.id}
                   onClick={() => router.push(`/dashboard/customers/${customer.id}`)}
@@ -258,13 +300,13 @@ export default function CustomersClient({ initialCustomers, stages }: Props) {
       </div>
 
       {/* 모바일 카드 */}
-      <div className="md:hidden space-y-3">
-        {filtered.length === 0 ? (
+      <div className={`md:hidden space-y-3 transition-opacity ${isLoading ? 'opacity-50' : ''}`}>
+        {customers.length === 0 ? (
           <div className="text-center py-12 text-sm text-[#94A3B8]">
-            고객이 없습니다. 첫 고객을 추가해보세요.
+            {isLoading ? '불러오는 중...' : '고객이 없습니다. 첫 고객을 추가해보세요.'}
           </div>
         ) : (
-          filtered.map(customer => (
+          customers.map(customer => (
             <div
               key={customer.id}
               onClick={() => router.push(`/dashboard/customers/${customer.id}`)}
@@ -280,6 +322,11 @@ export default function CustomersClient({ initialCustomers, stages }: Props) {
           ))
         )}
       </div>
+
+      {/* 페이지네이션 */}
+      {totalPages > 1 && (
+        <Pagination page={page} totalPages={totalPages} onChange={handlePageChange} />
+      )}
 
       {/* CustomerForm 슬라이드 패널 */}
       {isFormOpen && (
@@ -314,4 +361,66 @@ export default function CustomersClient({ initialCustomers, stages }: Props) {
       </button>
     </div>
   )
+}
+
+// ─── 페이지네이션 컴포넌트 ─────────────────────────────────────────────────────
+function Pagination({ page, totalPages, onChange }: { page: number; totalPages: number; onChange: (p: number) => void }) {
+  const pages = getPageNumbers(page, totalPages)
+
+  return (
+    <div className="flex items-center justify-center gap-1 mt-6">
+      <button
+        onClick={() => onChange(page - 1)}
+        disabled={page === 1}
+        className="w-9 h-9 flex items-center justify-center rounded-lg border border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+      >
+        <ChevronLeft size={16} />
+      </button>
+
+      {pages.map((p, i) =>
+        p === '...' ? (
+          <span key={`ellipsis-${i}`} className="w-9 h-9 flex items-center justify-center text-sm text-[#94A3B8]">
+            …
+          </span>
+        ) : (
+          <button
+            key={p}
+            onClick={() => onChange(p as number)}
+            className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${
+              p === page
+                ? 'bg-[#0F172A] text-white'
+                : 'border border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC]'
+            }`}
+          >
+            {p}
+          </button>
+        )
+      )}
+
+      <button
+        onClick={() => onChange(page + 1)}
+        disabled={page === totalPages}
+        className="w-9 h-9 flex items-center justify-center rounded-lg border border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+      >
+        <ChevronRight size={16} />
+      </button>
+    </div>
+  )
+}
+
+function getPageNumbers(current: number, total: number): (number | '...')[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+
+  const pages: (number | '...')[] = [1]
+
+  if (current > 3) pages.push('...')
+
+  const start = Math.max(2, current - 1)
+  const end = Math.min(total - 1, current + 1)
+  for (let i = start; i <= end; i++) pages.push(i)
+
+  if (current < total - 2) pages.push('...')
+
+  pages.push(total)
+  return pages
 }

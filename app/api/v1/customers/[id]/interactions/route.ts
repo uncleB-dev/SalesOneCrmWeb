@@ -16,7 +16,7 @@ export async function GET(
 
     const { data, error } = await supabase
       .from('interactions')
-      .select('*')
+      .select('*, call_records(raw_text)')
       .eq('customer_id', id)
       .eq('user_id', userId)
       .order('occurred_at', { ascending: false })

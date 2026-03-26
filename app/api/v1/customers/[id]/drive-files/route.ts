@@ -21,8 +21,7 @@ export async function GET(
       return NextResponse.json({ data: [], success: true })
     }
 
-    const { data: { session } } = await supabase.auth.getSession()
-    const providerToken = session?.provider_token ?? null
+    const providerToken = request.headers.get('X-Provider-Token') || null
 
     if (!providerToken) {
       // Return only snapshot from DB if no token

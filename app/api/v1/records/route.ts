@@ -112,6 +112,7 @@ export async function POST(request: NextRequest) {
         content: `🤖 AI 통화요약\n${content}`,
         duration: duration ?? null,
         occurred_at: occurred_at ?? new Date().toISOString(),
+        call_record_id: record.id,
       })
     }
 
