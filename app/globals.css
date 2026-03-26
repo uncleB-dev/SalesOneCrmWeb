@@ -156,3 +156,20 @@
     @apply font-sans;
   }
 }
+
+@layer utilities {
+  .scrollbar-kanban::-webkit-scrollbar {
+    width: 4px;
+  }
+  .scrollbar-kanban::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-kanban::-webkit-scrollbar-thumb {
+    background: #CBD5E1;
+    border-radius: 2px;
+  }
+  .scrollbar-kanban {
+    scrollbar-width: thin;
+    scrollbar-color: #CBD5E1 transparent;
+  }
+}

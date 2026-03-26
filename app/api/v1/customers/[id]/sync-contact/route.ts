@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getApiAuth } from '@/lib/api-auth'
 import { createGoogleContact } from '@/lib/google/contacts'
+import { getGoogleAccessToken } from '@/lib/google/token'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,7 +16,7 @@ export async function POST(
   const { supabase, userId } = auth
 
     const { data: { session } } = await supabase.auth.getSession()
-    const providerToken = session?.provider_token ?? null
+    const providerToken = session?.provider_token ?? await getGoogleAccessToken(userId)
 
     if (!providerToken) {
       return NextResponse.json({ error: '구글 로그인이 필요합니다. 재로그인 후 시도해주세요.', success: false }, { status: 400 })

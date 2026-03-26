@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getApiAuth } from '@/lib/api-auth'
+import { getGoogleAccessToken } from '@/lib/google/token'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
   const { supabase, userId } = auth
 
     const { data: { session } } = await supabase.auth.getSession()
-    const providerToken = session?.provider_token ?? null
+    const providerToken = session?.provider_token ?? await getGoogleAccessToken(userId)
     if (!providerToken) {
       return NextResponse.json({ error: 'REAUTH_REQUIRED', success: false }, { status: 401 })
     }

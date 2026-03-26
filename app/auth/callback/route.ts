@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { PIPELINE_DEFAULTS, ESCAPE_DEFAULTS } from '@/lib/utils/constants'
+import { saveGoogleRefreshToken } from '@/lib/google/token'
 
 async function ensureDefaultPipelineStages(supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>, userId: string) {
   const { count } = await supabase
@@ -37,6 +38,10 @@ export async function GET(request: Request) {
 
     if (session) {
       await ensureDefaultPipelineStages(supabase, session.user.id)
+      // Google refresh token 저장 (최초 로그인 시만 반환됨)
+      if (session.provider_refresh_token) {
+        await saveGoogleRefreshToken(session.user.id, session.provider_refresh_token)
+      }
     }
   }
 
