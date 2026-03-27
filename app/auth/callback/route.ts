@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { PIPELINE_DEFAULTS, ESCAPE_DEFAULTS } from '@/lib/utils/constants'
 import { saveGoogleRefreshToken } from '@/lib/google/token'
@@ -28,24 +30,43 @@ async function ensureDefaultPipelineStages(supabase: Awaited<ReturnType<typeof c
   }
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
 
+  // redirect response 먼저 생성 — 세션 쿠키를 이 객체에 직접 설정
+  const redirectResponse = NextResponse.redirect(new URL('/dashboard', origin))
+
   if (code) {
-    const supabase = await createServerSupabaseClient()
+    // anon key 사용 + 쿠키를 redirectResponse에 직접 주입
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+      {
+        cookies: {
+          getAll: () => request.cookies.getAll(),
+          setAll: (cookiesToSet) => {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              redirectResponse.cookies.set(name, value, options)
+            })
+          },
+        },
+      }
+    )
+
     const { data: { session } } = await supabase.auth.exchangeCodeForSession(code)
 
     if (session) {
-      await ensureDefaultPipelineStages(supabase, session.user.id)
-      // Google refresh token 저장 (최초 로그인 시만 반환됨)
+      // pipeline_stages 초기 생성은 service role client로 처리
+      const adminSupabase = await createServerSupabaseClient()
+      await ensureDefaultPipelineStages(adminSupabase, session.user.id)
       if (session.provider_refresh_token) {
         await saveGoogleRefreshToken(session.user.id, session.provider_refresh_token)
       }
     }
   }
 
-  return NextResponse.redirect(new URL('/dashboard', origin))
+  return redirectResponse
 }
 
 // 이메일 회원가입 직후 파이프라인 단계 생성을 위한 POST 핸들러
