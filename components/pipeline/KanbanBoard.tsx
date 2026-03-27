@@ -147,10 +147,19 @@ export default function KanbanBoard({
 
   if (!isMounted) {
     return (
-      <div className="flex gap-4 overflow-x-auto overflow-y-hidden h-[calc(100vh-180px)] pb-2">
-        {initialPipeline.map(col => (
-          <div key={col.id} className="min-w-[180px] md:min-w-[210px] md:max-w-[210px] bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] h-full animate-pulse overflow-hidden" style={{ borderTop: `4px solid ${col.color}` }} />
-        ))}
+      <div className="flex flex-col h-full gap-4">
+        <div className="flex flex-col flex-1 min-h-0">
+          <div className="h-5 flex-shrink-0 mb-2" />
+          <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden flex flex-row gap-3 pb-2">
+            {initialPipeline.map(col => (
+              <div
+                key={col.id}
+                className="min-w-[180px] md:min-w-[210px] md:max-w-[210px] flex-shrink-0 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] h-full animate-pulse overflow-hidden"
+                style={{ borderTop: `4px solid ${col.color}` }}
+              />
+            ))}
+          </div>
+        </div>
       </div>
     )
   }
@@ -205,21 +214,21 @@ export default function KanbanBoard({
 
   return (
     <DragDropContext onDragEnd={isDraggable ? onDragEnd : () => {}}>
-      <div className="space-y-6">
+      <div className="flex flex-col h-full gap-4">
         {/* 영업 파이프라인 섹션 */}
-        <div>
-          <h2 className="text-sm font-semibold text-[#64748B] mb-3 px-1">영업 파이프라인</h2>
-          <div className="flex gap-4 overflow-x-auto overflow-y-hidden pb-2 h-[calc(100vh-180px)]">
+        <div className="flex flex-col flex-1 min-h-0">
+          <h2 className="text-sm font-semibold text-[#64748B] mb-2 px-1 flex-shrink-0">영업 파이프라인</h2>
+          <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden flex flex-row gap-3 pb-2">
             {pipelineCols.map(renderColumn)}
           </div>
         </div>
 
         {/* 이탈 관리 섹션 */}
         {escapeCols.length > 0 && (
-          <div>
-            <div className="border-t-2 border-dashed border-red-200 pt-6">
-              <h2 className="text-sm font-semibold text-red-400 mb-3 px-1">이탈 관리</h2>
-              <div className="flex gap-4 overflow-x-auto overflow-y-hidden pb-2 h-[calc(100vh-180px)]">
+          <div className="flex-shrink-0">
+            <div className="border-t-2 border-dashed border-red-200 pt-3">
+              <h2 className="text-sm font-semibold text-red-400 mb-2 px-1">이탈 관리</h2>
+              <div className="overflow-x-auto overflow-y-hidden flex flex-row gap-3 h-[160px]">
                 {escapeCols.map(renderColumn)}
               </div>
             </div>

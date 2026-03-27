@@ -26,9 +26,9 @@ export default function PipelinePageClient({
   const [showEditor, setShowEditor] = useState(false)
 
   return (
-    <div className="p-4 md:p-6">
+    <div className="h-[calc(100vh-48px)] flex flex-col p-4 md:p-6 overflow-hidden">
       {/* 헤더 */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <div>
           <h1 className="text-lg font-bold text-[#1E293B]">파이프라인</h1>
           <p className="text-sm text-[#94A3B8]">고객을 드래그해서 단계를 변경하세요</p>
@@ -43,11 +43,13 @@ export default function PipelinePageClient({
       </div>
 
       {/* 칸반 보드 */}
-      <KanbanBoard
-        initialPipeline={initialPipeline}
-        initialEscape={initialEscape}
-        reminders={reminderMap}
-      />
+      <div className="flex-1 min-h-0">
+        <KanbanBoard
+          initialPipeline={initialPipeline}
+          initialEscape={initialEscape}
+          reminders={reminderMap}
+        />
+      </div>
 
       {/* 단계 관리 모달 */}
       {showEditor && (
