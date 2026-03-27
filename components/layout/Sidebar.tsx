@@ -81,7 +81,7 @@ export default function Sidebar() {
       {/* 로고 */}
       <div className="h-16 flex items-center px-3 border-b border-white/10 overflow-hidden">
         <div className="flex items-center gap-2 flex-shrink-0">
-          <div className="w-8 h-8 flex-shrink-0 bg-[#38BDF8] rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 flex-shrink-0 bg-[#0abfbc] rounded-lg flex items-center justify-center">
             <span className="text-[#0F172A] font-bold text-sm">S1</span>
           </div>
           <span
@@ -110,8 +110,8 @@ export default function Sidebar() {
                 className={cn(
                   'w-full flex items-center gap-3 px-2 py-2.5 rounded-lg text-sm font-medium transition-colors text-left',
                   isActive
-                    ? 'bg-[#38BDF8]/15 text-[#38BDF8]'
-                    : 'text-white/60 hover:text-white hover:bg-white/5'
+                    ? 'bg-[#0abfbc]/15 text-[#45dbd7]'
+                    : 'text-white/60 hover:text-white hover:bg-white/8'
                 )}
               >
                 <Icon size={18} className="flex-shrink-0" />
@@ -151,8 +151,8 @@ export default function Sidebar() {
                 className="w-7 h-7 rounded-full flex-shrink-0 border border-white/10"
               />
             ) : (
-              <div className="w-7 h-7 rounded-full bg-[#38BDF8]/30 flex items-center justify-center flex-shrink-0">
-                <span className="text-[#38BDF8] font-semibold text-xs">{initials}</span>
+              <div className="w-7 h-7 rounded-full bg-[#0abfbc]/25 flex items-center justify-center flex-shrink-0">
+                <span className="text-[#45dbd7] font-semibold text-xs">{initials}</span>
               </div>
             )}
             <div

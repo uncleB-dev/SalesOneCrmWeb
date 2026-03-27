@@ -7,10 +7,10 @@ interface StageBadgeProps {
 export default function StageBadge({ name, color, size = 'md' }: StageBadgeProps) {
   return (
     <span
-      className={`inline-flex items-center rounded-full font-medium whitespace-nowrap ${
-        size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-xs'
+      className={`inline-flex items-center rounded font-medium whitespace-nowrap tracking-wide ${
+        size === 'sm' ? 'px-1.5 py-px text-[11px]' : 'px-2 py-0.5 text-[11px]'
       }`}
-      style={{ backgroundColor: color + '20', color: color, border: `1px solid ${color}40` }}
+      style={{ backgroundColor: color + '18', color: color }}
     >
       {name}
     </span>

@@ -27,11 +27,11 @@ export default function Header() {
 
   return (
     <header
-      className={`fixed top-0 right-0 z-30 h-16 bg-white border-b border-[#E2E8F0] flex items-center justify-between px-4 md:px-6 transition-all duration-300 ${
+      className={`fixed top-0 right-0 z-30 h-12 bg-white/90 backdrop-blur-sm border-b border-[#bbc9c8]/60 flex items-center justify-between px-4 md:px-6 transition-all duration-300 ${
         isCollapsed ? 'left-0 md:left-14' : 'left-0 md:left-52'
       }`}
     >
-      <h1 className="text-lg font-semibold text-[#1E293B]">{title}</h1>
+      <h1 className="text-[15px] font-semibold text-[#1a1c1e]">{title}</h1>
 
       <div className="flex items-center gap-3">
         <NotificationDropdown />

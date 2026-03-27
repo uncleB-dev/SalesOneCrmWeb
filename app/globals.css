@@ -9,9 +9,13 @@
   --color-brand-navy: var(--brand-navy);
   --color-brand-sky: var(--brand-sky);
   --color-brand-sky-hover: var(--brand-sky-hover);
+  --color-brand-teal: var(--brand-teal);
+  --color-brand-teal-light: var(--brand-teal-light);
+  --color-brand-teal-dim: var(--brand-teal-dim);
   --color-surface-bg: var(--surface-bg);
   --color-surface-card: var(--surface-card);
   --color-surface-border: var(--surface-border);
+  --color-surface-hover: var(--surface-hover);
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-text-muted: var(--text-muted);
@@ -21,9 +25,9 @@
   --color-state-info: var(--state-info);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
+  --font-sans: var(--font-plus-jakarta), var(--font-geist-sans), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-plus-jakarta), var(--font-geist-sans), sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -63,52 +67,62 @@
 }
 
 :root {
-  /* SalesONE Brand Colors */
+  /* SalesONE Brand Colors — Stitch salesoneUI Design System */
   --brand-navy: #0F172A;
-  --brand-sky: #38BDF8;
-  --brand-sky-hover: #0EA5E9;
-  --surface-bg: #F8FAFC;
+  /* Stitch primary: #006a68 teal, container: #0abfbc, dim: #45dbd7 */
+  --brand-sky: #0abfbc;
+  --brand-sky-hover: #006a68;
+  --brand-teal: #006a68;
+  --brand-teal-light: #0abfbc;
+  --brand-teal-dim: #45dbd7;
+  /* Stitch surface: #f7f9fc, outline-variant: #bbc9c8 */
+  --surface-bg: #f7f9fc;
   --surface-card: #FFFFFF;
-  --surface-border: #E2E8F0;
-  --text-primary: #1E293B;
-  --text-secondary: #64748B;
-  --text-muted: #94A3B8;
-  --state-success: #10B981;
-  --state-warning: #F59E0B;
-  --state-danger: #EF4444;
-  --state-info: #38BDF8;
-  --background: oklch(1 0 0);
+  --surface-border: #bbc9c8;
+  --surface-hover: #eceef1;
+  /* Stitch on-surface text */
+  --text-primary: #1a1c1e;
+  --text-secondary: #4e5e80;
+  --text-muted: #6c7a79;
+  /* State colors */
+  --state-success: #16A34A;
+  --state-warning: #D97706;
+  --state-danger: #DC2626;
+  --state-info: #0abfbc;
+  /* shadcn / base-ui tokens — teal primary */
+  --background: oklch(0.98 0.003 240);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
+  /* primary = Stitch #006a68 teal */
+  --primary: oklch(0.432 0.094 193);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --muted-foreground: oklch(0.48 0.03 200);
+  --accent: oklch(0.94 0.015 195);
+  --accent-foreground: oklch(0.432 0.094 193);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
+  --border: oklch(0.88 0.012 200);
+  --input: oklch(0.88 0.012 200);
+  --ring: oklch(0.60 0.09 193);
+  --chart-1: oklch(0.432 0.094 193);
+  --chart-2: oklch(0.70 0.12 190);
+  --chart-3: oklch(0.83 0.1 191);
+  --chart-4: oklch(0.556 0 0);
+  --chart-5: oklch(0.371 0 0);
+  --radius: 0.5rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary: oklch(0.432 0.094 193);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-accent: oklch(0.94 0.015 195);
+  --sidebar-accent-foreground: oklch(0.432 0.094 193);
+  --sidebar-border: oklch(0.88 0.012 200);
+  --sidebar-ring: oklch(0.60 0.09 193);
 }
 
 .dark {
