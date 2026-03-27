@@ -147,9 +147,9 @@ export default function KanbanBoard({
 
   if (!isMounted) {
     return (
-      <div className="flex gap-4 overflow-x-auto overflow-y-hidden h-[calc(100vh-200px)] md:h-[calc(100vh-180px)] pb-2">
+      <div className="flex gap-4 overflow-x-auto overflow-y-hidden h-[calc(100vh-180px)] pb-2">
         {initialPipeline.map(col => (
-          <div key={col.id} className="min-w-[240px] md:min-w-[280px] md:max-w-[280px] bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] h-full animate-pulse overflow-hidden" style={{ borderTop: `4px solid ${col.color}` }} />
+          <div key={col.id} className="min-w-[180px] md:min-w-[210px] md:max-w-[210px] bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] h-full animate-pulse overflow-hidden" style={{ borderTop: `4px solid ${col.color}` }} />
         ))}
       </div>
     )
@@ -158,7 +158,7 @@ export default function KanbanBoard({
   const renderColumn = (col: KanbanColumn) => (
     <div
       key={col.id}
-      className="min-w-[240px] max-w-[240px] md:min-w-[280px] md:max-w-[280px] flex-shrink-0 flex flex-col rounded-xl overflow-hidden border border-[#E2E8F0] h-full"
+      className="min-w-[180px] max-w-[180px] md:min-w-[210px] md:max-w-[210px] flex-shrink-0 flex flex-col rounded-xl overflow-hidden border border-[#E2E8F0] h-full"
       style={{ borderTop: `4px solid ${col.color}` }}
     >
       {/* 컬럼 헤더 */}
@@ -166,7 +166,7 @@ export default function KanbanBoard({
         className="flex items-center justify-between px-3 py-2 flex-shrink-0"
         style={{ backgroundColor: `${col.color}33` }}
       >
-        <span className="text-sm font-semibold truncate max-w-[130px]" style={{ color: col.color }}>
+        <span className="text-[13px] font-semibold truncate max-w-[110px]" style={{ color: col.color }}>
           {col.name}
         </span>
         <span
@@ -183,7 +183,7 @@ export default function KanbanBoard({
           <div
             ref={provided.innerRef}
             {...provided.droppableProps}
-            className={`flex-1 overflow-y-auto min-h-0 p-2 space-y-2 transition-colors scrollbar-kanban ${
+            className={`flex-1 overflow-y-auto min-h-0 p-2 space-y-1.5 transition-colors scrollbar-kanban ${
               snapshot.isDraggingOver ? 'bg-[#EFF6FF] border-2 border-dashed border-[#38BDF8]' : 'bg-[#F8FAFC]'
             }`}
           >
@@ -209,7 +209,7 @@ export default function KanbanBoard({
         {/* 영업 파이프라인 섹션 */}
         <div>
           <h2 className="text-sm font-semibold text-[#64748B] mb-3 px-1">영업 파이프라인</h2>
-          <div className="flex gap-4 overflow-x-auto overflow-y-hidden pb-2 h-[calc(100vh-200px)] md:h-[calc(100vh-180px)]">
+          <div className="flex gap-4 overflow-x-auto overflow-y-hidden pb-2 h-[calc(100vh-180px)]">
             {pipelineCols.map(renderColumn)}
           </div>
         </div>
@@ -219,7 +219,7 @@ export default function KanbanBoard({
           <div>
             <div className="border-t-2 border-dashed border-red-200 pt-6">
               <h2 className="text-sm font-semibold text-red-400 mb-3 px-1">이탈 관리</h2>
-              <div className="flex gap-4 overflow-x-auto overflow-y-hidden pb-2 h-[calc(100vh-200px)] md:h-[calc(100vh-180px)]">
+              <div className="flex gap-4 overflow-x-auto overflow-y-hidden pb-2 h-[calc(100vh-180px)]">
                 {escapeCols.map(renderColumn)}
               </div>
             </div>
