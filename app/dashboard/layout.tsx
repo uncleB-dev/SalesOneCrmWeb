@@ -2,6 +2,7 @@ import Sidebar from '@/components/layout/Sidebar'
 import Header from '@/components/layout/Header'
 import BottomTabBar from '@/components/layout/BottomTabBar'
 import MainWrapper from '@/components/layout/MainWrapper'
+import Footer from '@/components/layout/Footer'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -10,6 +11,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <Header />
       <MainWrapper>{children}</MainWrapper>
       <BottomTabBar />
+      <Footer />
     </div>
   )
 }
