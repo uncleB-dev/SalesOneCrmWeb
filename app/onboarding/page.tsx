@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import OnboardingLayout from '@/components/onboarding/OnboardingLayout'
 import TermsStep, { type TermsAgreement } from '@/components/onboarding/TermsStep'
@@ -9,7 +8,6 @@ import ProfileStep from '@/components/onboarding/ProfileStep'
 import type { JobType } from '@/lib/onboarding'
 
 export default function OnboardingPage() {
-  const router = useRouter()
   const [step, setStep] = useState<1 | 2>(1)
   const [termsAgreement, setTermsAgreement] = useState<TermsAgreement | null>(null)
 
@@ -37,8 +35,9 @@ export default function OnboardingPage() {
       return
     }
 
-    router.push('/dashboard')
-    router.refresh()
+    // 미들웨어 DB 쿼리 스킵을 위해 쿠키 즉시 설정 후 이동
+    document.cookie = 'sb-onboarding-completed=1; path=/; max-age=31536000; samesite=lax'
+    window.location.href = '/dashboard'
   }
 
   return (
