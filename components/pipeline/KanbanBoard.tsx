@@ -27,6 +27,10 @@ export default function KanbanBoard({
 
   useEffect(() => setIsMounted(true), [])
 
+  // 저장 후 router.refresh()로 props가 갱신되면 state 동기화
+  useEffect(() => { setPipelineCols(initialPipeline) }, [initialPipeline])
+  useEffect(() => { setEscapeCols(initialEscape) }, [initialEscape])
+
   const allCols = useCallback(() => [...pipelineCols, ...escapeCols], [pipelineCols, escapeCols])
 
   const onDragEnd = async (result: DropResult) => {

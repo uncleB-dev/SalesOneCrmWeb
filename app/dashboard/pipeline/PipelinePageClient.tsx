@@ -56,7 +56,7 @@ export default function PipelinePageClient({
         <>
           <div
             className="fixed inset-0 z-40 bg-black/40"
-            onClick={() => { setShowEditor(false); router.refresh() }}
+            onClick={() => { router.refresh(); setShowEditor(false) }}
           />
           <div className="fixed inset-y-0 right-0 z-50 w-full max-w-lg bg-white shadow-xl flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#E2E8F0]">
@@ -65,7 +65,7 @@ export default function PipelinePageClient({
                 <p className="text-sm text-[#94A3B8]">드래그로 순서 변경, 클릭으로 이름 수정</p>
               </div>
               <button
-                onClick={() => { setShowEditor(false); router.refresh() }}
+                onClick={() => { router.refresh(); setShowEditor(false) }}
                 className="p-2 rounded-lg hover:bg-[#F8FAFC] text-[#64748B]"
               >
                 ✕
@@ -75,7 +75,7 @@ export default function PipelinePageClient({
               <PipelineStagesEditor
                 initialStages={allStages}
                 customerCountByStage={customerCountByStage}
-                onSaved={() => { setShowEditor(false); router.refresh() }}
+                onSaved={() => { router.refresh(); setShowEditor(false) }}
               />
             </div>
           </div>
