@@ -149,6 +149,20 @@ export default function PipelineStagesEditor({ initialStages, customerCountBySta
   }
 
   const handleSave = async () => {
+    // 같은 stage_type 내 이름 중복 검사
+    const checkDup = (stages: PipelineStage[]) =>
+      stages.map(s => s.name).filter((name, i, arr) => arr.indexOf(name) !== i)
+    const dupPipeline = checkDup(pipeline)
+    const dupEscape = checkDup(escape)
+    if (dupPipeline.length > 0) {
+      toast.error(`영업 파이프라인에 중복된 단계명이 있어요: ${dupPipeline.join(', ')}`)
+      return
+    }
+    if (dupEscape.length > 0) {
+      toast.error(`이탈 관리에 중복된 단계명이 있어요: ${dupEscape.join(', ')}`)
+      return
+    }
+
     setSaving(true)
     try {
       const allStages = [
