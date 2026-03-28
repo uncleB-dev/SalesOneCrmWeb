@@ -66,7 +66,7 @@ export default async function PipelinePage() {
     <PipelinePageClient
       initialPipeline={buildColumns(pipelineStages)}
       initialEscape={buildColumns(escapeStages)}
-      allStages={stages ?? []}
+      allStages={[...pipelineStages, ...escapeStages]}
       customerCountByStage={customerCountByStage}
       reminderMap={reminderMap}
     />

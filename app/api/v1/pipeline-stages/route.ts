@@ -52,18 +52,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '이탈 관리는 최소 1개여야 합니다', success: false }, { status: 400 })
     }
 
-    const stagesToUpsert = stages.map((s: any) => {
-      const isNew = !s.id || s.id.startsWith('new-')
-      const base = {
-        user_id: userId,
-        name: s.name,
-        color: s.color,
-        order_index: s.order_index,
-        stage_type: s.stage_type,
-        is_default: s.is_default || false,
-      }
-      return isNew ? base : { ...base, id: s.id }
-    })
+    const stagesToUpsert = stages.map((s: any) => ({
+      id: (!s.id || s.id.startsWith('new-')) ? crypto.randomUUID() : s.id,
+      user_id: userId,
+      name: s.name,
+      color: s.color,
+      order_index: s.order_index,
+      stage_type: s.stage_type,
+      is_default: s.is_default || false,
+    }))
 
     const { data, error } = await supabase
       .from('pipeline_stages')

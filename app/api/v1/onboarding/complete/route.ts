@@ -75,7 +75,10 @@ export async function POST(request: NextRequest) {
 
       const { error: stagesError } = await supabase
         .from('pipeline_stages')
-        .insert([...pipelineStages, ...escapeStages])
+        .upsert([...pipelineStages, ...escapeStages], {
+          onConflict: 'user_id,name,stage_type',
+          ignoreDuplicates: true,
+        })
 
       if (stagesError) throw stagesError
     }
