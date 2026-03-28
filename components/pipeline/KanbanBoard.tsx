@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { DragDropContext, Droppable, DropResult } from '@hello-pangea/dnd'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { toast } from 'sonner'
 import KanbanCard from './KanbanCard'
 import type { KanbanColumn, Customer } from '@/types'
@@ -22,6 +23,7 @@ export default function KanbanBoard({
   const [isMounted, setIsMounted] = useState(false)
   const [pipelineCols, setPipelineCols] = useState(initialPipeline)
   const [escapeCols, setEscapeCols] = useState(initialEscape)
+  const [isEscapeExpanded, setIsEscapeExpanded] = useState(false)
 
   useEffect(() => setIsMounted(true), [])
 
@@ -224,16 +226,79 @@ export default function KanbanBoard({
         </div>
 
         {/* 이탈 관리 섹션 */}
-        {escapeCols.length > 0 && (
-          <div className="flex-shrink-0">
-            <div className="border-t-2 border-dashed border-red-200 pt-3">
-              <h2 className="text-sm font-semibold text-red-400 mb-2 px-1">이탈 관리</h2>
-              <div className="overflow-x-auto overflow-y-hidden flex flex-row gap-3 h-[160px]">
-                {escapeCols.map(renderColumn)}
+        {escapeCols.length > 0 && (() => {
+          const escapeTotal = escapeCols.reduce((sum, col) => sum + col.customers.length, 0)
+          return (
+            <div className="flex-shrink-0">
+              <div className="border-t-2 border-dashed border-red-200 pt-3">
+                <button
+                  onClick={() => setIsEscapeExpanded(v => !v)}
+                  className="flex items-center gap-2 px-1 mb-2 cursor-pointer hover:opacity-70 transition-opacity w-full text-left"
+                >
+                  <span className="text-sm font-semibold text-red-400">
+                    이탈 관리 ({escapeTotal}명)
+                  </span>
+                  {isEscapeExpanded
+                    ? <ChevronUp size={14} className="text-red-400" />
+                    : <ChevronDown size={14} className="text-red-400" />
+                  }
+                </button>
+                <div
+                  className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                    isEscapeExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
+                  }`}
+                >
+                  <div className="overflow-x-auto overflow-y-hidden flex flex-row gap-3 pb-2">
+                    {escapeCols.map(col => (
+                      <div
+                        key={col.id}
+                        className="min-w-[180px] max-w-[180px] md:min-w-[210px] md:max-w-[210px] flex-shrink-0 flex flex-col rounded-xl overflow-hidden border border-[#E2E8F0]"
+                        style={{ borderTop: `4px solid ${col.color}` }}
+                      >
+                        <div
+                          className="flex items-center justify-between px-3 py-2 flex-shrink-0"
+                          style={{ backgroundColor: `${col.color}33` }}
+                        >
+                          <span className="text-[13px] font-semibold truncate max-w-[110px]" style={{ color: col.color }}>
+                            {col.name}
+                          </span>
+                          <span
+                            className="text-white text-xs font-bold px-1.5 py-0.5 rounded-full ml-1 flex-shrink-0"
+                            style={{ backgroundColor: col.color }}
+                          >
+                            {col.customers.length}
+                          </span>
+                        </div>
+                        <Droppable droppableId={col.id}>
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.droppableProps}
+                              className={`overflow-y-auto p-2 space-y-1.5 transition-colors scrollbar-kanban max-h-[320px] min-h-[40px] ${
+                                snapshot.isDraggingOver ? 'bg-[#EFF6FF] border-2 border-dashed border-[#38BDF8]' : 'bg-[#F8FAFC]'
+                              }`}
+                            >
+                              {col.customers.map((customer, index) => (
+                                <KanbanCard
+                                  key={customer.id}
+                                  customer={customer}
+                                  index={index}
+                                  isDraggable={isDraggable}
+                                  nearestReminder={reminders[customer.id] ?? null}
+                                />
+                              ))}
+                              {provided.placeholder}
+                            </div>
+                          )}
+                        </Droppable>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
       </div>
     </DragDropContext>
   )

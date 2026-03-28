@@ -26,7 +26,7 @@ export default function PipelinePageClient({
   const [showEditor, setShowEditor] = useState(false)
 
   return (
-    <div className="h-[calc(100vh-48px)] flex flex-col p-4 md:p-6 overflow-hidden">
+    <div className="h-[calc(100vh-48px)] flex flex-col p-4 md:p-6">
       {/* 헤더 */}
       <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <div>
