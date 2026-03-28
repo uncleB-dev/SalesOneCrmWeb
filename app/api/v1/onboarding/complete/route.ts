@@ -50,28 +50,35 @@ export async function POST(request: NextRequest) {
 
     if (profileError) throw profileError
 
-    // 2. 직종별 파이프라인 단계 생성
-    const stageNames = JOB_STAGE_DEFAULTS[job_type as JobType]
-    const pipelineStages = stageNames.map((stageName, i) => ({
-      user_id: userId,
-      name: stageName,
-      color: STAGE_COLORS[i] ?? STAGE_COLORS[0],
-      order_index: i,
-      stage_type: 'pipeline' as const,
-      is_default: true,
-    }))
-    const escapeStages = ESCAPE_DEFAULTS.map(s => ({
-      ...s,
-      user_id: userId,
-      stage_type: 'escape' as const,
-      is_default: true,
-    }))
-
-    const { error: stagesError } = await supabase
+    // 2. 직종별 파이프라인 단계 생성 (이미 존재하면 스킵)
+    const { count: existingCount } = await supabase
       .from('pipeline_stages')
-      .insert([...pipelineStages, ...escapeStages])
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
 
-    if (stagesError) throw stagesError
+    if (!existingCount || existingCount === 0) {
+      const stageNames = JOB_STAGE_DEFAULTS[job_type as JobType]
+      const pipelineStages = stageNames.map((stageName, i) => ({
+        user_id: userId,
+        name: stageName,
+        color: STAGE_COLORS[i] ?? STAGE_COLORS[0],
+        order_index: i,
+        stage_type: 'pipeline' as const,
+        is_default: true,
+      }))
+      const escapeStages = ESCAPE_DEFAULTS.map(s => ({
+        ...s,
+        user_id: userId,
+        stage_type: 'escape' as const,
+        is_default: true,
+      }))
+
+      const { error: stagesError } = await supabase
+        .from('pipeline_stages')
+        .insert([...pipelineStages, ...escapeStages])
+
+      if (stagesError) throw stagesError
+    }
 
     return NextResponse.json({ success: true })
   } catch (error: any) {

@@ -45,9 +45,14 @@ export default async function PipelinePage() {
     customerCountByStage[c.stage] = (customerCountByStage[c.stage] ?? 0) + 1
   })
 
-  // 칸반 컬럼 구성
-  const pipelineStages = (stages ?? []).filter(s => s.stage_type === 'pipeline')
-  const escapeStages = (stages ?? []).filter(s => s.stage_type === 'escape')
+  // 중복 방어 (name+stage_type 기준 첫 번째만 유지)
+  const dedup = (list: NonNullable<typeof stages>) =>
+    list.filter((s, i, arr) =>
+      i === arr.findIndex(x => x.name === s.name && x.stage_type === s.stage_type)
+    )
+
+  const pipelineStages = dedup((stages ?? []).filter(s => s.stage_type === 'pipeline'))
+  const escapeStages = dedup((stages ?? []).filter(s => s.stage_type === 'escape'))
 
   const buildColumns = (stageList: typeof pipelineStages) =>
     stageList.map(stage => ({
