@@ -45,15 +45,15 @@ export async function POST(request: NextRequest) {
     // pipeline type validation
     const pipelineStages = stages.filter((s: any) => s.stage_type === 'pipeline')
     const escapeStages = stages.filter((s: any) => s.stage_type === 'escape')
-    if (pipelineStages.length < 5 || pipelineStages.length > 12) {
-      return NextResponse.json({ error: '영업 파이프라인은 5~12개여야 합니다', success: false }, { status: 400 })
+    if (pipelineStages.length < 1 || pipelineStages.length > 20) {
+      return NextResponse.json({ error: '영업 파이프라인은 1~20개여야 합니다', success: false }, { status: 400 })
     }
     if (escapeStages.length < 1) {
       return NextResponse.json({ error: '이탈 관리는 최소 1개여야 합니다', success: false }, { status: 400 })
     }
 
     const stagesToUpsert = stages.map((s: any) => ({
-      id: s.id || undefined,
+      id: s.id && !s.id.startsWith('new-') ? s.id : undefined,
       user_id: userId,
       name: s.name,
       color: s.color,
